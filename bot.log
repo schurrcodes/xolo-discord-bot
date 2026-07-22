@@ -1,8 +1,0 @@
-WARNING:discord.client:PyNaCl is not installed, voice will NOT be supported
-WARNING:discord.client:davey is not installed, voice will NOT be supported
-INFO:discord.client:logging in using static token
-INFO:discord.gateway:Shard ID None has connected to Gateway (Session ID: 1aabfac2aa83be1c7f251d1bb36f4379).
-INFO:root:Logged in as Xolo#5462
-INFO:root:Synced 2 commands.
-INFO:root:xolotlin used /ping
-INFO:root:xolotlin used /greet
