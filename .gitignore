@@ -7,3 +7,9 @@
 # Ignore bot logs
 bot.log
 *.log
+
+# Ignore VsCode settings folder
+.vscode/
+
+#Ignore pycache folders
+__pycache__/*

@@ -45,7 +45,7 @@ async def ping(interaction: discord.Interaction):
     except Exception as e:
         logging.exception(e)
 
-# Greeting command that replies with Hello and mentions the user who invoked the command.
+# Greeting command that replies with Hello and mentions the user who used the command.
 @bot.tree.command(name="greet", description="Replies with Hello!")
 async def greet(interaction: discord.Interaction):
     try:
@@ -53,4 +53,27 @@ async def greet(interaction: discord.Interaction):
         await interaction.response.send_message(f"Hello {interaction.user.mention}")
     except Exception as e:
         logging.exception(e)
+
+# Command to give userinfo about the user who used the command.
+@bot.tree.command(name="userinfo", description="Gives info about the user who used the command.")
+async def userinfo(interaction: discord.Interaction):
+    try:
+        logging.info(f"{interaction.user} used /userinfo") # Log user interaction
+        user = interaction.user # Get the user who used the command
+        embed = discord.Embed(title=f"User Info for {user.name}", color=discord.Color.blurple)
+        embed.add_field(name="Username", value=user.name, inline=True) # username of the user
+        embed.add_field(name="Joined Server", value=user.joined_at.strftime("%Y-%m-%d %H:%M:%S"), inline=True) #When the user joined the server
+        embed.add_field(name="Account Created", value=user.created_at.strftime("%Y-%m-%d %H:%M:%S"), inline=True)  #When was user's discord account created
+
+        roles = [role.name for role in user.roles if role.name != "@everyone"] # Get all roles of the user except @everyone
+        embed.add_field(name="Roles",value=", ".join(roles) if roles else "No Roles", inline=False) # If user has no roles, display No Roles
+
+        # Display user's avatar and display name
+        embed.set_thumbnail(url=user.avatar.url)
+        embed.set_footer(text=f"Display Name: {user.display_name}")
+        await interaction.response.send_message(embed=embed)
+    except Exception as e:
+        logging.exception(e)
+  
+
 bot.run(token)
