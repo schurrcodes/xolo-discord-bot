@@ -60,7 +60,7 @@ async def userinfo(interaction: discord.Interaction):
     try:
         logging.info(f"{interaction.user} used /userinfo") # Log user interaction
         user = interaction.user # Get the user who used the command
-        embed = discord.Embed(title=f"User Info for {user.name}", color=discord.Color.blurple)
+        embed = discord.Embed(title=f"User Info for {user.name}", color=discord.Color.blue())
         embed.add_field(name="Username", value=user.name, inline=True) # username of the user
         embed.add_field(name="Joined Server", value=user.joined_at.strftime("%Y-%m-%d %H:%M:%S"), inline=True) #When the user joined the server
         embed.add_field(name="Account Created", value=user.created_at.strftime("%Y-%m-%d %H:%M:%S"), inline=True)  #When was user's discord account created
@@ -75,5 +75,21 @@ async def userinfo(interaction: discord.Interaction):
     except Exception as e:
         logging.exception(e)
   
+# Command to give serverinfo about the server
+@bot.tree.command(name="serverinfo", description="Gives info about the server.")
+async def serverinfo(interaction: discord.Interaction):
+    try:
+        logging.info(f"{interaction.user} used /serverinfo") # Log user interaction
+        guild = interaction.guild # Get the guild (server) where the command was used.
+        embed = discord.Embed(title=f"Server Info for {guild.name}", color=discord.Color.blue())
+        embed.add_field(name="Server Icon", value=guild.icon.url, inline=True) # Display server icon
+        embed.add_field(name="Server Name", value=guild.name, inline=True) # Display server name
+        embed.add_field(name="Server ID", value=guild.id, inline=True)
+        embed.add_field(name="Server Owner", value=guild.owner, inline=True) # Display server owner
+        embed.add_field(name="Server Created At", value=guild.created_at.strftime("%Y-%m-%d %H:%M:%S")) # Display server creation date 
+        await interaction.response.send_message(embed=embed)
+    except Exception as e:
+        logging.exception(e)
+ 
 
 bot.run(token)
