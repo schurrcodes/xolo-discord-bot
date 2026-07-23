@@ -10,6 +10,3 @@ bot.log
 
 # Ignore VsCode settings folder
 .vscode/
-
-#Ignore pycache folders
-__pycache__/*
