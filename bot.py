@@ -104,9 +104,19 @@ async def serverinfo(interaction: discord.Interaction):
 # Command that repeats what the user says. (Future: Will add a permissions check to only allow certain roles to use this command)
 @bot.tree.command(name="say", description="Repeats what the user says.")
 async def say(interaction: discord.Interaction, message: str):
+    # Search roles with specific permissions 
+    # e.g., (Administrator, Manage Messages specifically) 
+    # and check if the user has any of those roles. 
+    # If yes, allow the command to be used. 
+    # If Possible Don't show the command to users who don't have the required permissions.
+
     try:
-        logging.info(f"{interaction.user} with role {interaction.user.top_role.name} used /say with message: {message}") # Log user interaction
-        await interaction.response.send_message(message)
+        if (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.manage_messages):
+            logging.info(f"{interaction.user} with role {interaction.user.top_role.name} used /say with message: {message}") # Log user interaction
+            await interaction.response.send_message(message)
+        else:
+            logging.info(f"{interaction.user} with role {interaction.user.top_role.name} tried to use /say with message: {message} but does not have permission.") # Log the user interaction
+            await interaction.response.send_message("You do not have permission to use that command.", ephemeral=True)
     except Exception as e:
         logging.exception(e)
  
