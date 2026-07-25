@@ -95,13 +95,24 @@ async def serverinfo(interaction: discord.Interaction):
 # Officer/Permission Based Commands 
 #----------------------------------
 
-# Let Owner of Server OR Main Role in Command (President/Leader) to give a role to a user. (Permissions)
-
-# Command that gives the user or another user a role in the server. (Future: will add a permissions check to only allow certain roles to use this command)
+# Command that gives the user or another user a role in the server.
+@bot.tree.command(name="giverole", description="Gives a role to a user.")
+async def giverole(interaction: discord.Interaction, user: discord.Member, role: discord.Role):
+    try:
+        if (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.manage_roles):
+            await user.add_roles(role)
+            logging.info(f"{interaction.user} with role {interaction.user.top_role.name} used /giverole to give {role.name} to {user.name}") # Log user interaction
+            await interaction.response.send_message(f"Gave {role.name} to {user.name}", ephemeral=True)
+        else:
+            logging.info(f"{interaction.user} with role {interaction.user.top_role.name} tried to use /giverole to give {role.name} to {user.name} but does not have permission.") # Log the user interaction
+            await interaction.response.send_message(f"You do not have permission to use that command.", ephemeral=True)
+    except Exception as e:
+        logging.exception(e)
+                        
 
 # Command that embeds a message in the server. For announcement/rules/notification purposes. (Future: Will add a permission check to the command to only allow certain roles to use this command).
 
-# Command that repeats what the user says. (Future: Will add a permissions check to only allow certain roles to use this command)
+# Command that repeats what the user says.
 @bot.tree.command(name="say", description="Repeats what the user says.")
 async def say(interaction: discord.Interaction, message: str):
     # Search roles with specific permissions 
