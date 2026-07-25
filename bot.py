@@ -100,7 +100,12 @@ async def serverinfo(interaction: discord.Interaction):
 async def giverole(interaction: discord.Interaction, user: discord.Member, role: discord.Role):
     try:
         if (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.manage_roles):
+            # Check if the user already has the role
+            if role in user.roles:
+                await interaction.response.send_message(f"{user.name} already has the role {role.name}", ephemeral=True)
+                return
             await user.add_roles(role) # add the role to the user 
+
             logging.info(f"{interaction.user} with role {interaction.user.top_role.name} used /giverole to give {role.name} to {user.name}") # Log user interaction
             await interaction.response.send_message(f"Gave {role.name} to {user.name}", ephemeral=True)
         else:
@@ -114,6 +119,10 @@ async def giverole(interaction: discord.Interaction, user: discord.Member, role:
 async def removerole(interaction: discord.Interaction, user: discord.Member, role: discord.Role):
     try:
         if (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.manage_roles):
+            # Check if the user has the role
+            if role not in user.roles:
+                await interaction.response.send_message(f"{user.name} does not have the role {role.name}. No need to remove.", ephemeral=True)
+                return
             await user.remove_roles(role) # built-in function that removes the role from the user
             logging.info(f"{interaction.user} with role {interaction.user.top_role.name} used /removerole to remove {role.name} from {user.name}") # Log user interaction
             await interaction.response.send_message(f"Removed {role.name} from {user.name}", ephemeral=True)
