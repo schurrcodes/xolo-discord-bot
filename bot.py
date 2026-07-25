@@ -109,8 +109,7 @@ async def giverole(interaction: discord.Interaction, user: discord.Member, role:
     except Exception as e:
         logging.exception(e)
                         
-
-# Command that embeds a message in the server. For announcement/rules/notification purposes. (Future: Will add a permission check to the command to only allow certain roles to use this command).
+# Command that embeds a message in the server.
 @bot.tree.command(name="embed", description="Embeds a message in the server.")
 async def embed(interaction: discord.Interaction, title: str, description: str):
     try:
@@ -142,6 +141,31 @@ async def say(interaction: discord.Interaction, message: str):
             await interaction.response.send_message("You do not have permission to use that command.", ephemeral=True)
     except Exception as e:
         logging.exception(e)
- 
+
+# Command that deletes a certain number of messages in the channel.
+
+# Command that creates a poll in the server with a quesiton and up to 5 options. The user can vote by reacting to the message with the corresponding emoji.
+
+# --------------------------------
+# Club Purpose Commands WITH Permission Checks
+# --------------------------------
+
+# Command that announces certain messages in the server similar to embed but with more parameters
+@bot.tree.command(name="announce", description="Announces a message in the server.")
+async def announce(interaction: discord.Interaction, title: str, meeting: str, description: str, section1: str, section2: str, section3: str, color: str):
+    try:
+        if (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.manage_messages):
+            embed = discord.Embed(title=title, description=description, color=discord.Color.from_str(color))
+            embed.add_field(name="Meeting", value=meeting, inline=False)
+            embed.add_field(name="Section 1", value=section1, inline=False)
+            embed.add_field(name="Section 2", value=section2, inline=False)
+            embed.add_field(name="Section 3", value=section3, inline=False)
+            logging.info(f"{interaction.user} with role {interaction.user.top_role.name} used /announce with title: {title}, meeting: {meeting}, description: {description}, section1: {section1}, section2: {section2}, section3: {section3}, color: {color}")
+            await interaction.response.send_message(embed=embed)
+        else:
+            logging.info(f"{interaction.user} with role {interaction.user.top_role.name} tried to use /announce with title: {title}, meeting: {meeting}, description: {description}, section1: {section1}, section2: {section2}, section3: {section3}, color: {color} but does not have permission.")
+            await interaction.response.send_message("You do not have permission to use that command.", ephemeral=True)
+    except Exception as e:
+        logging.exception(e)
 
 bot.run(token)
