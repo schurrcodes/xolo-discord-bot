@@ -100,7 +100,7 @@ async def serverinfo(interaction: discord.Interaction):
 async def giverole(interaction: discord.Interaction, user: discord.Member, role: discord.Role):
     try:
         if (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.manage_roles):
-            await user.add_roles(role)
+            await user.add_roles(role) # add the role to the user 
             logging.info(f"{interaction.user} with role {interaction.user.top_role.name} used /giverole to give {role.name} to {user.name}") # Log user interaction
             await interaction.response.send_message(f"Gave {role.name} to {user.name}", ephemeral=True)
         else:
@@ -110,7 +110,19 @@ async def giverole(interaction: discord.Interaction, user: discord.Member, role:
         logging.exception(e)
 
 # Command that removes a role from a user in the server.
-                        
+@bot.tree.command(name="removerole", description="Removes a role from a user.")
+async def removerole(interaction: discord.Interaction, user: discord.Member, role: discord.Role):
+    try:
+        if (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.manage_roles):
+            await user.remove_roles(role) # built-in function that removes the role from the user
+            logging.info(f"{interaction.user} with role {interaction.user.top_role.name} used /removerole to remove {role.name} from {user.name}") # Log user interaction
+            await interaction.response.send_message(f"Removed {role.name} from {user.name}", ephemeral=True)
+        else:
+            logging.info(f"{interaction.user} with role {interaction.user.top_role.name} tried to use /removerole to remove {role.name} from {user.name} but does not have permission.") # Log user interaction
+            await interaction.response.send_message(f"You do not have permission to use that command.", ephemeral=True)
+    except Exception as e:
+        logging.exception(e)
+
 # Command that embeds a message in the server.
 @bot.tree.command(name="embed", description="Embeds a message in the server.")
 async def embed(interaction: discord.Interaction, title: str, description: str):
