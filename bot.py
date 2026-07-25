@@ -104,7 +104,10 @@ async def giverole(interaction: discord.Interaction, user: discord.Member, role:
             if role in user.roles:
                 await interaction.response.send_message(f"{user.name} already has the role {role.name}", ephemeral=True)
                 return
-            await user.add_roles(role) # add the role to the user 
+            try:
+                await user.add_roles(role) # add the role to the user 
+            except discord.Forbidden:
+                await interaction.response.send_message(f"Failed to give {role.name} to {user.name}. I may not have permission to manage that role.", ephemeral=True)
 
             logging.info(f"{interaction.user} with role {interaction.user.top_role.name} used /giverole to give {role.name} to {user.name}") # Log user interaction
             await interaction.response.send_message(f"Gave {role.name} to {user.name}", ephemeral=True)
@@ -123,7 +126,10 @@ async def removerole(interaction: discord.Interaction, user: discord.Member, rol
             if role not in user.roles:
                 await interaction.response.send_message(f"{user.name} does not have the role {role.name}. No need to remove.", ephemeral=True)
                 return
-            await user.remove_roles(role) # built-in function that removes the role from the user
+            try:
+                await user.remove_roles(role) # built-in function that removes the role from the user
+            except discord.Forbidden:
+                await interaction.response.send_message(f"Failed to remove {role.name} from {user.name}. I may not have permission to manage that role.", ephemeral=True)
             logging.info(f"{interaction.user} with role {interaction.user.top_role.name} used /removerole to remove {role.name} from {user.name}") # Log user interaction
             await interaction.response.send_message(f"Removed {role.name} from {user.name}", ephemeral=True)
         else:
@@ -170,6 +176,22 @@ async def say(interaction: discord.Interaction, message: str):
 # Command that creates a poll in the server with a quesiton and up to 5 options. The user can vote by reacting to the message with the corresponding emoji.
 
 # Command that kicks a user from the server.
+@bot.tree.command(name="kick", description="Kicks a user from the server.")
+@app_commands.default_permissions(kick_members=True) # This decorator ensures that only users with the kick_members permission can use this command.
+async def kick(interaction: discord.Interaction, user: discord.Member, reason: str=None):
+    try:
+        if (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.kick_members):
+            try:
+                await user.kick(reason=reason) # build-in function that kicks the user from the server
+                logging.info(f"{interaction.user} with role {interaction.user.top_role.name} used /kick to kick {user.name} for reason: {reason}") # Log user interaction
+                await interaction.response.send_message(f"Kicked {user.name} from the server for reason: {reason}", ephemeral=True)
+            except discord.Forbidden:
+                await interaction.response.send_message(f"Failed to kick {user.name}. I may not have permission to kick that user.", ephemeral=True)
+        else:
+            logging.info(f"{interaction.user} with role {interaction.user.top_role.name} tried to use /kick to kick {user.name} for reason: {reason} but does not have permission.") # Log user interaction
+            await interaction.response.send_message("You do not have permission to use that command.", ephemeral=True)
+    except Exception as e:
+        logging.exception(e)
 
 # Command that bans a user from the server.
 
