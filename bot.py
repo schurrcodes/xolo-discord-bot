@@ -111,6 +111,18 @@ async def giverole(interaction: discord.Interaction, user: discord.Member, role:
                         
 
 # Command that embeds a message in the server. For announcement/rules/notification purposes. (Future: Will add a permission check to the command to only allow certain roles to use this command).
+@bot.tree.command(name="embed", description="Embeds a message in the server.")
+async def embed(interaction: discord.Interaction, title: str, description: str):
+    try:
+        if (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.manage_messages):
+            embed = discord.Embed(title=title, description=description, color=discord.Color.blue())
+            logging.info(f"{interaction.user} with role {interaction.user.top_role.name} used /embed with title: {title} and description: {description}")
+            await interaction.response.send_message(embed=embed)
+        else:
+            logging.info(f"{interaction.user} with role {interaction.user.top_role.name} tried to use /embed with title: {title} and description: {description} but does not have permission.")
+            await interaction.response.send_message("You do not have permission to use that command.", ephemeral=True)
+    except Exception as e:
+        logging.exception(e)
 
 # Command that repeats what the user says.
 @bot.tree.command(name="say", description="Repeats what the user says.")
