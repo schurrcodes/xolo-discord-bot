@@ -225,10 +225,16 @@ async def ban(interaction: discord.Interaction, user: discord.Member, reason: st
     # Prevent banning youself
     if user == interaction.user:
         await interaction.response.send_message("You cannot ban yourself.", ephemeral=True)
+        return
 
     # Checks if the bot is trying to ban someone higher or equal in role hierarchry
     if interaction.guild.me.top_role <= user.top_role:
         await interaction.response.send_message(f"Failed to ban {user.name}. My highest role is not high enough.", ephemeral=True)
+        return
+
+    # Check moderator role hierarchy to prevent banning higher/equal ranks
+    if interaction.user != interaction.guild.owner and interaction.user.top_roles <= user.top_role:
+        await interaction.response.send_message(f"Failed to ban {user.name}. You cannot ban someone with an equal or higher role than you.", ephemeral=True)
         return
 
     try:
@@ -240,6 +246,8 @@ async def ban(interaction: discord.Interaction, user: discord.Member, reason: st
         await interaction.response.send_message(f"Failed to ban {user.name}. I do not have permission to ban this user.", ephemeral=True)
     except Exception as e:
         logging.exception(e)
+        if not interaction.response.is_done():
+            await interaction.response.send_message("Some error has occurred while processing the command.", ephemeral=True)
 
 # =============================
 # UNBAN COMMAND
@@ -259,6 +267,8 @@ async def unban(interaction: discord.Interaction, user: discord.User):
         await interaction.response.send_message(f"Failed to unban {user.name}. I do not have permission to unban users.", ephemeral=True)
     except Exception as e:
         logging.exception(e)
+        if not interaction.response.is_done():
+            await interaction.response.send_message("Some error has occured while processing the command.",ephemeral=True)
 
 # Command that mutes a user in the server.
 
