@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 import logging
 from dotenv import load_dotenv
+import datetime
 import os
 import sys
 
@@ -188,7 +189,10 @@ async def say(interaction: discord.Interaction, message: str):
     except Exception as e:
         logging.exception(e)
 
-# Command that deletes a certain number of messages in the channel.
+# =============================
+# CLEAR COMMAND
+# A command that clears between 1 to 100 messages, that are no longer than 14 days old.
+# =============================
 @bot.tree.command(name="clear", description="Deletes a specificed number of messages from the channel.")
 @app_commands.default_permissions(manage_messages=True)
 @app_commands.checks.has_permissions(manage_messages=True)
@@ -208,12 +212,76 @@ async def clear(interaction: discord.Interaction, amount: int):
         await interaction.followup.send(f"Deleted {len(deleted)} messages.", ephemeral=True)
     except discord.Forbidden:
         await interaction.followup.send("Failed to delete messages. I don't have the permission to run this command.", ephemeral=True)
+    except discord.HTTPException as e:
+        # return error if trying to bulk delete msgs older than 14 days.
+        logging.error(f"Error purging messages: {e}")
+        await interaction.followup.send("Failed to delete messages. Note: Discord does not allow bulk deleting messages older than 14 days.", ephemeral=True) 
     except Exception as e:
         logging.exception(e)
         if not interaction.response.is_done():
             await interaction.response.send_message("Some error has occurred while processing the command.", ephemeral=True)
 
-# Command that creates a poll in the server with a quesiton and up to 5 options. The user can vote by reacting to the message with the corresponding emoji.
+# =============================
+# POLL COMMAND
+# Command that creates a poll in the server with a quesiton and up to 10 options.
+# =============================
+
+@bot.tree.command(name="poll", description="Creates a Discord poll (Up to 10 options).")
+@app_commands.default_permissions(create_polls=True)
+@app_commands.checks.has_permissions(create_polls=True)
+@app_commands.describe(
+    question="The poll question",
+    option1="First option",
+    option2="Second option",
+    option3="Third option",
+    option4="Fourth option",
+    option5="Fifth option",
+    option6="Sixth option",
+    option7="Seventh option",
+    option8="Eighth option",
+    option9="Ninth option",
+    option10="Tenth option",
+    duration="How long the poll lasts in hours (default: 24)",
+    multiple="Allow users to select multiple answers? (default: false)"
+)
+async def poll(
+    interaction: discord.Interaction,
+    question: str,
+    option1: str,
+    option2: str,
+    option3: str | None=None,
+    option4: str | None=None,
+    option5: str | None=None,
+    option6: str | None=None,
+    option7: str | None=None,
+    option8: str | None=None,
+    option9: str | None=None,
+    option10: str | None=None,
+    duration: int | None=24,
+    multiple: bool | None=False
+):
+
+    try:
+        # Gather non-empty options intoa list
+        raw_options = [option1, option2, option3, option4, option5, option6, option7, option8, option9, option10]
+        options = [opt for opt in raw_options if opt is not None]
+    
+        # create a Discord poll object
+        pollObj = discord.Poll(question=question, duration=datetime.timedelta(hours=duration), multiple=multiple)
+    
+        # Add the provided answers
+        for opt in options:
+            pollObj.add_answer(text=opt)
+    
+        logging.info(f"{interaction.user} ({interaction.user.id}) with role {interaction.user.top_role.name} has used /poll.")
+    
+        # Send confirmation to the command user and post the poll into the channel
+        await interaction.response.send_message("Poll has been created.", ephemeral=True)
+        await interaction.channel.send(poll=pollObj)
+    except Exception as e:
+        logging.exception(e)
+        if not interaction.response.is_done():
+            await interaction.response.send_message("Some error has occurred while processing the command.", ephemeral=True)
 
 # =============================
 # KICK COMMAND
@@ -377,7 +445,7 @@ def is_owner():
 # Only permissible to bot owner
 # =============================
 @bot.tree.command(name="sync", description="Syncs the bot commands. Only bot owner can use this command.")
-@app_commands.default_permissions(administraor=True)
+@app_commands.default_permissions(administrator=True)
 @app_commands.checks.has_permissions(administrator=True)
 @is_owner() # This decorator ensures that only the bot owner can use this command.
 async def sync(interaction: discord.Interaction):
