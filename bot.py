@@ -194,8 +194,44 @@ async def kick(interaction: discord.Interaction, user: discord.Member, reason: s
         logging.exception(e)
 
 # Command that bans a user from the server.
+@bot.tree.command(name="ban", description="Bans a user from the server.")
+@app_commands.default_permissions(ban_members=True) # This decorator ensures that only users with banning permissions can use this command
+async def ban(interaction: discord.Interaction, user: discord.Member, reason: str=None):
+    try:
+        if (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.ban_members):
+            try:
+                await user.ban(reason=reason)
+                logging.info(f"{interaction.user} with role {interaction.user.top_roles.name} use /ban to ban {user.name} for reason:  {reason}") # log user interaction
+                await interaction.response.send_message(f"Banned {user.name} from the server for reason: {reason}", ephemeral=True)
+            except discord.Forbidden:
+                await interaction.response.send_message(f"Failed to ban {user.name}. I may not have permissions to kick that user." ,ephemeral=True)
+        else:
+            logging.info(f"{interaction.user} with role {interaction.user.top_role.name} tried to use /ban to ban {user.name} for reason: {reason} but does not have permission.") # Log user interaction
+            await interaction.response.send_message("You do not have permission to use that command.", ephemeral=True)
+    except Exception as e:
+        logging.exception(e)
 
 # Command that unbans a user from the server.
+@bot.tree.command(name="unban", description="Unbans a user from the server.")
+@app_commands.default_permissions(ban_members=True) # This decorator ensures that only users with banning permissions can use this command
+async def unban(interaction: discord.Interaction, user_id: str):
+    try:
+        # Fetches the ban entry to verify the user is actually banned
+        try:
+            user = await bot.fetch_user(int(user_id)) 
+            await interaction.guild.unban(user) # Method to unban target
+
+            logging.info(f"{interaction.user} with role {interaction.user.top_roles.name} use /unban to unban {user.name}") # log user interaction
+            await interaction.response.send_message(f"Unbanned {user.name} from the server.", ephemeral=True)
+        except discord.NotFound:
+            await interaction.response.send_message(f"That use is not currently banned or does not exist.", ephemeral=True)
+        except discord.Forbidden:
+            await interaction.response.send_message(f"Failed to unban {user.name}. I may not have permissions to kick that user." ,ephemeral=True)
+            logging.info(f"{interaction.user} with role {interaction.user.top_role.name} tried to use /unban to unban {user.name} but does not have permission.") # Log user interaction
+        except ValueError:
+            await interaction.response.send_message("Please provide a valid numeric User ID.", ephemeral=True)
+    except Exception as e:
+        logging.exception(e)
 
 # Command that mutes a user in the server.
 
@@ -213,6 +249,7 @@ async def kick(interaction: discord.Interaction, user: discord.Member, reason: s
 
 # Command that announces certain messages in the server similar to embed but with more parameters
 @bot.tree.command(name="announce", description="Announces a message in the server.")
+@app_commands.default_permission(manage_messages=True)
 async def announce(interaction: discord.Interaction, title: str, meeting: str, description: str, section1: str, section2: str=None, section3: str=None, color: str="#0000FF"):
     try:
         if (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.manage_messages):
@@ -241,12 +278,22 @@ async def announce(interaction: discord.Interaction, title: str, meeting: str, d
     except Exception as e:
         logging.exception(e)
 
+
+# =============================
+# OWNER CHECK
+# =============================
+
+def is_owner():
+    async def predicate(interaction: discord.Interaction) -> bool:
+        return bot.is_owner(interaction.user)
+    return app_commands(predicate)
+
 # =============================
 # SYNCING COMMANDS
 # Only permissible to bot owner
 # =============================
 @bot.tree.command(name="sync", description="Syncs the bot commands. Only bot owner can use this command.")
-@app_commands.is_owner() # This decorator ensures that only the bot owner can use this command.
+@is_owner() # This decorator ensures that only the bot owner can use this command.
 async def sync(interaction: discord.Interaction):
     try:
         synced = await bot.tree.sync()
