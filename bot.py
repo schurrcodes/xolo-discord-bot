@@ -189,6 +189,29 @@ async def say(interaction: discord.Interaction, message: str):
         logging.exception(e)
 
 # Command that deletes a certain number of messages in the channel.
+@bot.tree.command(name="clear", description="Deletes a specificed number of messages from the channel.")
+@app_commands.default_permissions(manage_messages=True)
+@app_commands.checks.has_permissions(manage_messages=True)
+@app_commands.describe(amount="The number of messages to delete (1-100)")
+async def clear(interaction: discord.Interaction, amount: int):
+    # Check amount limits
+    if amount < 1 or amount > 100:
+        await interaction.response.send_message("Please provide a number between 1 and 100.", ephemeral=True)
+        return
+    # Defer the interaction immediately to give the bot time to clear messages.
+    await interaction.response.defer(ephemeral=True)
+
+    try:
+        # Bulk delete msgs
+        deleted = await interaction.channel.purge(limit=amount)
+        logging.info(f"{interaction.user} ({interaction.user.id}) cleared {len(deleted)} messages in #{interaction.channel.name}")
+        await interaction.followup.send(f"Deleted {len(deleted)} messages.", ephemeral=True)
+    except discord.Forbidden:
+        await interaction.followup.send("Failed to delete messages. I don't have the permission to run this command.", ephemeral=True)
+    except Exception as e:
+        logging.exception(e)
+        if not interaction.response.is_done():
+            await interaction.response.send_message("Some error has occurred while processing the command.", ephemeral=True)
 
 # Command that creates a poll in the server with a quesiton and up to 5 options. The user can vote by reacting to the message with the corresponding emoji.
 
@@ -213,6 +236,8 @@ async def kick(interaction: discord.Interaction, user: discord.Member, reason: s
             await interaction.response.send_message("You do not have permission to use that command.", ephemeral=True)
     except Exception as e:
         logging.exception(e)
+        if not interaction.response.is_done():
+            await interaction.response.send_message("Some error has occurred while processing the command.", ephemeral=True)
 
 # =============================
 # BAN COMMAND
@@ -287,6 +312,7 @@ async def unban(interaction: discord.Interaction, user: discord.User):
 # Command that announces certain messages in the server similar to embed but with more parameters
 @bot.tree.command(name="announce", description="Announces a message in the server.")
 @app_commands.default_permissions(manage_messages=True)
+@app_commands.checks.has_permissions(manage_messages=True)
 async def announce(interaction: discord.Interaction, title: str, meeting: str, description: str, section1: str, section2: str=None, section3: str=None, color: str="#0000FF"):
     try:
         if (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.manage_messages):
@@ -316,18 +342,26 @@ async def announce(interaction: discord.Interaction, title: str, meeting: str, d
         logging.exception(e)
 
 # =============================
-# GLOBAL ERROR HANDLES
+# GLOBAL ERROR HANDLER
 # =============================
 @bot.tree.error
 async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
     if isinstance(error, app_commands.MissingPermissions):
         # Log the failed attempt 
-        logging.info(f"{interaction.user} with id: ({interaction.user.id})with the role {interaction.user.top_role.name} tried to use /{interaction.command.name} but lacked permissions.")
-        # Tell the user that they don't have permissions
-        await interaction.response.send_message("You do not have permission to use that command", ephemeral=True)
+        logging.info(f"{interaction.user} ({interaction.user.id}) with the role {interaction.user.top_role.name} tried to use /{interaction.command.name} but lacked permissions.")
+        msg="You don not have permission to use that command."
+    elif isinstance(error, app_commands.BotMissingPermissions):
+        logging.warning(f"Bot lacked permissions for /{interaction.command.name} in {interaction.guild.name}")
+        msg="I do not have the required permissions to run this command."
     else:
-        # Fall back for another unexpected slash command
-        logging.error(f"Unhandled command error: {error}")
+        logging.error(f"Unhandled command error in /{interaction.command.name}: {error}")
+        msg="Some error has occured while running the command."
+
+    # Send response
+    if interaction.response.is_done():
+        await interaction.followup.send(msg, ephemeral=True)
+    else:
+        await interaction.response.send_message(msg, ephemeral=True)
 
 # =============================
 # OWNER CHECK
@@ -343,6 +377,8 @@ def is_owner():
 # Only permissible to bot owner
 # =============================
 @bot.tree.command(name="sync", description="Syncs the bot commands. Only bot owner can use this command.")
+@app_commands.default_permissions(administraor=True)
+@app_commands.checks.has_permissions(administrator=True)
 @is_owner() # This decorator ensures that only the bot owner can use this command.
 async def sync(interaction: discord.Interaction):
     try:
