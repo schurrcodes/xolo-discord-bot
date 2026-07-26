@@ -193,7 +193,7 @@ async def say(interaction: discord.Interaction, message: str):
 # Command that creates a poll in the server with a quesiton and up to 5 options. The user can vote by reacting to the message with the corresponding emoji.
 
 # =============================
-# BKICKAN COMMAND
+# KICK COMMAND
 # A command that kicks the user from the server.
 # =============================
 @bot.tree.command(name="kick", description="Kicks a user from the server.")
@@ -222,6 +222,10 @@ async def kick(interaction: discord.Interaction, user: discord.Member, reason: s
 @app_commands.default_permissions(ban_members=True)# This decorator ensures that only users with banning permissions can use this command
 @app_commands.checks.has_permissions(ban_members=True) # Backend shield for bypassing UI
 async def ban(interaction: discord.Interaction, user: discord.Member, reason: str=None):
+    # Prevent banning youself
+    if user == interaction.user:
+        await interaction.response.send_message("You cannot ban yourself.", ephemeral=True)
+
     # Checks if the bot is trying to ban someone higher or equal in role hierarchry
     if interaction.guild.me.top_role <= user.top_role:
         await interaction.response.send_message(f"Failed to ban {user.name}. My highest role is not high enough.", ephemeral=True)
@@ -308,7 +312,7 @@ async def announce(interaction: discord.Interaction, title: str, meeting: str, d
 async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
     if isinstance(error, app_commands.MissingPermissions):
         # Log the failed attempt 
-        logging.info(f"{interaction.user} with the role {interaction.user.top_role.name} tried to use /{interaction.command.name} but lacked permissions.")
+        logging.info(f"{interaction.user} with id: ({interaction.user.id})with the role {interaction.user.top_role.name} tried to use /{interaction.command.name} but lacked permissions.")
         # Tell the user that they don't have permissions
         await interaction.response.send_message("You do not have permission to use that command", ephemeral=True)
     else:
@@ -337,5 +341,7 @@ async def sync(interaction: discord.Interaction):
         await interaction.response.send_message(f"Synced {len(synced)} commands.", ephemeral=True)
     except Exception as e:
         logging.exception(e)
-
+# =============================
+# EXECUTE BOT
+# =============================
 bot.run(token)
