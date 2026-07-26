@@ -16,25 +16,22 @@ console_handler = logging.StreamHandler(sys.stdout)
 logging.basicConfig(
     level=logging.INFO, handlers=[file_handler, console_handler]
 )
-
-intents = discord.Intents.default()
+intents=discord.Intents.default()
 intents.message_content=True
 intents.members=True # Text and Poll Payloads
 
-bot = commands.Bot(
-    command_prefix="!",
-    intents=intents
-)
+# Def Bot instances/intents
+bot = commands.Bot(command_prefix="!", intents=intents)
 
+# When Ready, Bot Syncs commands to Discord Servers
 @bot.event
 async def on_ready():
-    logging.info(f"Logged in as {bot.user}")
-
+    logging.info(f"Logged in as {bot.user.name}") #Changed bot.user to bot.user.name
     try:
         synced=await bot.tree.sync()
         logging.info(f"Synced {len(synced)} commands.")
     except Exception as e:
-        logging.exception(e)
+        logging.exception(f"Failed to sync commands: {e}")
 
 # Ping command that replies with Pong! (Future: Will add latency in ms)
 @bot.tree.command(name="ping", description="Replies with Pong!")
@@ -97,6 +94,7 @@ async def serverinfo(interaction: discord.Interaction):
 
 # Command that gives the user or another user a role in the server.
 @bot.tree.command(name="giverole", description="Gives a role to a user.")
+@app_commands.default_permissions(manage_roles=True)
 async def giverole(interaction: discord.Interaction, user: discord.Member, role: discord.Role):
     try:
         if (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.manage_roles):
@@ -119,6 +117,7 @@ async def giverole(interaction: discord.Interaction, user: discord.Member, role:
 
 # Command that removes a role from a user in the server.
 @bot.tree.command(name="removerole", description="Removes a role from a user.")
+@app_commands.default_permissions(manage_roles=True)
 async def removerole(interaction: discord.Interaction, user: discord.Member, role: discord.Role):
     try:
         if (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.manage_roles):
@@ -140,6 +139,7 @@ async def removerole(interaction: discord.Interaction, user: discord.Member, rol
 
 # Command that embeds a message in the server.
 @bot.tree.command(name="embed", description="Embeds a message in the server.")
+@app_commands.default_permissions(manage_messages=True)
 async def embed(interaction: discord.Interaction, title: str, description: str):
     try:
         if (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.manage_messages):
@@ -154,6 +154,7 @@ async def embed(interaction: discord.Interaction, title: str, description: str):
 
 # Command that repeats what the user says.
 @bot.tree.command(name="say", description="Repeats what the user says.")
+@app_commands.default_permissions(manage_messages=True)
 async def say(interaction: discord.Interaction, message: str):
     # Search roles with specific permissions 
     # e.g., (Administrator, Manage Messages specifically) 
@@ -193,43 +194,44 @@ async def kick(interaction: discord.Interaction, user: discord.Member, reason: s
     except Exception as e:
         logging.exception(e)
 
-# Command that bans a user from the server.
+
+# =============================
+# BAN COMMAND
+# A command that bans the user from the server.
+# =============================
 @bot.tree.command(name="ban", description="Bans a user from the server.")
-@app_commands.default_permissions(ban_members=True) # This decorator ensures that only users with banning permissions can use this command
+@app_commands.checks.has_permissions(ban_members=True) # This decorator ensures that only users with banning permissions can use this command
 async def ban(interaction: discord.Interaction, user: discord.Member, reason: str=None):
+    # Checks if the bot is trying to ban someone higher or equal in role hierarchry
+    if interaction.guild.me.top_role <= user.top_role:
+        await interaction.response.send_message(f"Failed to ban {user.name}. My highest role is not high enough.", ephemeral=True)
+        return
+
     try:
-        if (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.ban_members):
-            try:
-                await user.ban(reason=reason)
-                logging.info(f"{interaction.user} with role {interaction.user.top_roles.name} use /ban to ban {user.name} for reason:  {reason}") # log user interaction
-                await interaction.response.send_message(f"Banned {user.name} from the server for reason: {reason}", ephemeral=True)
-            except discord.Forbidden:
-                await interaction.response.send_message(f"Failed to ban {user.name}. I may not have permissions to kick that user." ,ephemeral=True)
-        else:
-            logging.info(f"{interaction.user} with role {interaction.user.top_role.name} tried to use /ban to ban {user.name} for reason: {reason} but does not have permission.") # Log user interaction
-            await interaction.response.send_message("You do not have permission to use that command.", ephemeral=True)
+        # Ban the specific user
+        await user.ban(reason=reason)
+        logging.info(f"{interaction.user} with role {interaction.user.top_role.name} used /ban to ban {user.name} for reason: {reason}")
+        await interaction.response.send_message(f"Banned {user.name} from the server for reason: {reason}", ephemeral=True)
+    except discord.Forbidden:
+        await interaction.response.send_message(f"Failed to ban {user.name}. I do not have permission to ban this user.", ephemeral=True)
     except Exception as e:
         logging.exception(e)
 
-# Command that unbans a user from the server.
+# =============================
+# UNBAN COMMAND
+# A command that unbans user from the server.
+# =============================
 @bot.tree.command(name="unban", description="Unbans a user from the server.")
-@app_commands.default_permissions(ban_members=True) # This decorator ensures that only users with banning permissions can use this command
-async def unban(interaction: discord.Interaction, user_id: str):
+@app_commands.checks.has_permissions(ban_members=True) # This decorator ensures that only users with banning permissions can use this command
+async def unban(interaction: discord.Interaction, user: discord.User):
     try:
-        # Fetches the ban entry to verify the user is actually banned
-        try:
-            user = await bot.fetch_user(int(user_id)) 
-            await interaction.guild.unban(user) # Method to unban target
-
-            logging.info(f"{interaction.user} with role {interaction.user.top_roles.name} use /unban to unban {user.name}") # log user interaction
-            await interaction.response.send_message(f"Unbanned {user.name} from the server.", ephemeral=True)
-        except discord.NotFound:
-            await interaction.response.send_message(f"That use is not currently banned or does not exist.", ephemeral=True)
-        except discord.Forbidden:
-            await interaction.response.send_message(f"Failed to unban {user.name}. I may not have permissions to kick that user." ,ephemeral=True)
-            logging.info(f"{interaction.user} with role {interaction.user.top_role.name} tried to use /unban to unban {user.name} but does not have permission.") # Log user interaction
-        except ValueError:
-            await interaction.response.send_message("Please provide a valid numeric User ID.", ephemeral=True)
+       await interaction.guild.unban(user)
+       logging.info(f"{interaction.user} with role {interaction.user.top_role.name} used /unban to unban {user.name}")
+       await interaction.response.send_message(f"Unbanned {user.name} from the server.", ephemeral=True)
+    except discord.NotFound:
+        await interaction.response.send_message(f"That user is not currently banned or doesn't exist", ephemeral=True)
+    except discord.Forbidden:
+        await interaction.response.send_message(f"Failed to unban {user.name}. I do not have permission to unban users.", ephemeral)
     except Exception as e:
         logging.exception(e)
 
@@ -249,7 +251,7 @@ async def unban(interaction: discord.Interaction, user_id: str):
 
 # Command that announces certain messages in the server similar to embed but with more parameters
 @bot.tree.command(name="announce", description="Announces a message in the server.")
-@app_commands.default_permission(manage_messages=True)
+@app_commands.default_permissions(manage_messages=True)
 async def announce(interaction: discord.Interaction, title: str, meeting: str, description: str, section1: str, section2: str=None, section3: str=None, color: str="#0000FF"):
     try:
         if (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.manage_messages):
@@ -278,6 +280,19 @@ async def announce(interaction: discord.Interaction, title: str, meeting: str, d
     except Exception as e:
         logging.exception(e)
 
+# =============================
+# GLOBAL ERROR HANDLES
+# =============================
+@bot.tree.error
+async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+    if isinstance(error, app_commands.MissingPermissions):
+        # Log the failed attempt 
+        logging.info(f"{interaction.user} with the role {interaction.user.top_role.name} tried to use /{interaction.command.name} but lacked permissions.")
+        # Tell the user that they don't have permissions
+        await interaction.response.send_message("You do not have permission to use that command", ephemeral=True)
+    else:
+        # Fall back for another unexpected slash command
+        logging.error(f"Unhandled command error: {error}")
 
 # =============================
 # OWNER CHECK
