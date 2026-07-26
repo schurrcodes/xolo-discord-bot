@@ -241,4 +241,18 @@ async def announce(interaction: discord.Interaction, title: str, meeting: str, d
     except Exception as e:
         logging.exception(e)
 
+# =============================
+# SYNCING COMMANDS
+# Only permissible to bot owner
+# =============================
+@bot.tree.command(name="sync", description="Syncs the bot commands. Only bot owner can use this command.")
+@app_commands.is_owner() # This decorator ensures that only the bot owner can use this command.
+async def sync(interaction: discord.Interaction):
+    try:
+        synced = await bot.tree.sync()
+        logging.info(f"{interaction.user} used /sync to sync {len(synced)} commands.")
+        await interaction.response.send_message(f"Synced {len(synced)} commands.", ephemeral=True)
+    except Exception as e:
+        logging.exception(e)
+
 bot.run(token)
