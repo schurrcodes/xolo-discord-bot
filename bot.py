@@ -4,6 +4,7 @@ from discord import app_commands
 import logging
 from dotenv import load_dotenv
 import datetime
+import json
 import os
 import sys
 
@@ -34,7 +35,33 @@ async def on_ready():
     except Exception as e:
         logging.exception(f"Failed to sync commands: {e}")
 
-# Ping command that replies with Pong! (Future: Will add latency in ms)
+# =============================
+# JSON STORAGE HELPER
+# =============================
+DATA_FILE = "saved_messages.json" # STORE SAVE MESSAGES IN JSON
+
+# Loads saved messages within the DATA_FILE by reading
+def load_saved_messages() -> dict:
+    if not os.path.exists(DATA_FILE):
+        return {}
+    try:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+    
+# Saves/Writes user message into DATA_FILE
+def save_user_message(user_id: int, message: str):
+    data = load_saved_messages()
+    data[str(user_id)] = message
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4)
+
+# =============================
+# PING COMMAND
+# A command that replies with Pong! (Future: will add latency in ms).
+# =============================
+
 @bot.tree.command(name="ping", description="Replies with Pong!")
 async def ping(interaction: discord.Interaction):
     try:
@@ -43,7 +70,11 @@ async def ping(interaction: discord.Interaction):
     except Exception as e:
         logging.exception(e)
 
-# Greeting command that replies with Hello and mentions the user who used the command.
+# =============================
+# GREET COMMAND
+# A command that that replies with Hello and mentions the user who used the command.
+# =============================
+
 @bot.tree.command(name="greet", description="Replies with Hello!")
 async def greet(interaction: discord.Interaction):
     try:
@@ -52,7 +83,11 @@ async def greet(interaction: discord.Interaction):
     except Exception as e:
         logging.exception(e)
 
-# Command to give userinfo about the user who used the command.
+# =============================
+# USER INFO COMMAND
+# A command to give user info about the user who used the command.
+# =============================
+
 @bot.tree.command(name="userinfo", description="Gives info about the user who used the command.")
 async def userinfo(interaction: discord.Interaction):
     try:
@@ -72,8 +107,12 @@ async def userinfo(interaction: discord.Interaction):
         await interaction.response.send_message(embed=embed)
     except Exception as e:
         logging.exception(e)
-  
-# Command to give serverinfo about the server
+
+# =============================
+# SERVER INFO COMMAND
+# A command to give server info about the server.
+# =============================
+
 @bot.tree.command(name="serverinfo", description="Gives info about the server.")
 async def serverinfo(interaction: discord.Interaction):
     try:
@@ -169,25 +208,45 @@ async def embed(interaction: discord.Interaction, title: str, description: str):
 # SAY COMMAND
 # A command that repeats a message (Future: Add message saves).
 # =============================
-@bot.tree.command(name="say", description="Repeats what the user says.")
+@bot.tree.command(name="say", description="Repeats a message or sends your saved default message.")
 @app_commands.default_permissions(manage_messages=True)
 @app_commands.checks.has_permissions(manage_messages=True)
-async def say(interaction: discord.Interaction, message: str):
-    # Search roles with specific permissions 
-    # e.g., (Administrator, Manage Messages specifically) 
-    # and check if the user has any of those roles. 
-    # If yes, allow the command to be used. 
-    # If Possible Don't show the command to users who don't have the required permissions.
-
+@app_commands.describe(message="The message to send (optional): leave blank to send your saved default message")
+async def say(interaction: discord.Interaction, message: str | None=None):
+    user_id_str = str(interaction.user.id)
+    saved_data = load_saved_messages()
+    # If the user provided a new message -> update saved message and prep to send
+    if message:
+        save_user_message(interaction.user.id, message) # Saves new user message
+        text_to_send=message
+    # If the user didn't provide a message -> use their saved message
+    elif user_id_str in saved_data:
+        text_to_send = saved_data[user_id_str]
+    # If the user didn't provide a message and no saved message exists -> warning
+    else:
+        await interaction.response.send_message("You do not have a saved message yet. Please provide a message parameter first.", ephemeral=True)
+        return
     try:
-        if (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.manage_messages):
-            logging.info(f"{interaction.user} with role {interaction.user.top_role.name} used /say with message: {message}") # Log user interaction
-            await interaction.response.send_message(message)
+        # send the message to the channel publicly
+        await interaction.channel.send(text_to_send)
+        logging.info(
+            f"{interaction.user} ({interaction.user.id}) with role {interaction.user.top_role.name} "
+            f"used /say with message: {text_to_send}"
+        )
+
+        await interaction.response.send_message("Message has been sent.", ephemeral=True)
+    except discord.Forbidden:
+        if not interaction.response.is_done():
+            await interaction.response.send_message("I do not have permissions to send messages in this channel.", ephemeral=True)
         else:
-            logging.info(f"{interaction.user} with role {interaction.user.top_role.name} tried to use /say with message: {message} but does not have permission.") # Log the user interaction
-            await interaction.response.send_message("You do not have permission to use that command.", ephemeral=True)
+            await interaction.followup.send(
+                "Failed to send message. Missing permissions.", 
+                ephemeral=True
+            )
     except Exception as e:
         logging.exception(e)
+        if not interaction.response.is_done():
+            await interaction.response.send_message("Some error has occurred while processing the command.", ephemeral=True)
 
 # =============================
 # CLEAR COMMAND
@@ -377,7 +436,10 @@ async def unban(interaction: discord.Interaction, user: discord.User):
 # Club Purpose Commands WITH Permission Checks
 # --------------------------------
 
+# =============================
+# ANNOUNCE COMMAND
 # Command that announces certain messages in the server similar to embed but with more parameters
+# =============================
 @bot.tree.command(name="announce", description="Announces a message in the server.")
 @app_commands.default_permissions(manage_messages=True)
 @app_commands.checks.has_permissions(manage_messages=True)
@@ -399,8 +461,7 @@ async def announce(
     meeting: str | None=None, 
     section1: str | None=None, 
     section2: str | None=None, 
-    section3: str | None=None, 
-    color: str=discord.Color.brand_green(),
+    color: str="#327634",
     ping: discord.Role | None=None
 ):
     # Safe parsing of hex color
@@ -411,6 +472,7 @@ async def announce(
         if (0 <= color_int >= 0xFFFFFF):
             raise ValueError("Hex Not In Range")
     except ValueError:
+        logging.info(f"{interaction.user} provided wrong color format for using /announce command.")
         await interaction.response.send_message("Wrong color format. Please provide the correct 6-digit hex code.",ephemeral=True)
 
     # Create embed
@@ -445,15 +507,14 @@ async def announce(
         await interaction.response.send_message(f"Announcement sent to {channel.mention}.", ephemeral=True)
 
     except discord.Forbidden:
+        logging.info(f"The bot does not have the permissions to run /announce.")
         await interaction.response.send_message(f"I do not have permission to send messages or embeds in {channel.mention}.", ephemeral=True)
     except Exception as e:
         logging.exception(e)
         if not interaction.response.is_done():
             await interaction.response.send_message("Some error has occurred while sending the announcement.", ephemeral=True)
 
-# =============================
-# GLOBAL ERROR HANDLER
-# =============================
+
 @bot.tree.error
 async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
     if isinstance(error, app_commands.MissingPermissions):
