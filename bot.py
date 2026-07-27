@@ -381,33 +381,75 @@ async def unban(interaction: discord.Interaction, user: discord.User):
 @bot.tree.command(name="announce", description="Announces a message in the server.")
 @app_commands.default_permissions(manage_messages=True)
 @app_commands.checks.has_permissions(manage_messages=True)
-async def announce(interaction: discord.Interaction, title: str, meeting: str, description: str, section1: str, section2: str=None, section3: str=None, color: str="#0000FF"):
+@app_commands.describe(
+    channel="The channel to post the announcement in",
+    title="Main title of the announcement",
+    description="Main body/text of the anouncement",
+    meeting="Meeting details/link/info (optional)",
+    section1="Additional information section (optional)",
+    section2="Additional information section (optional)",
+    color="Hex color code (e.g., #0000FF or 0000FF)",
+    ping="Role or mention to include with the announcement (optional)"
+)
+async def announce(
+    interaction: discord.Interaction, 
+    channel: discord.TextChannel,
+    title: str, 
+    description: str, 
+    meeting: str | None=None, 
+    section1: str | None=None, 
+    section2: str | None=None, 
+    section3: str | None=None, 
+    color: str=discord.Color.brand_green(),
+    ping: discord.Role | None=None
+):
+    # Safe parsing of hex color
+    clean_hex = color.lstrip('#')
     try:
-        if (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.manage_messages):
-            color = int(color.replace("#", ""), 16) # convert hex color to int
-            # Check if the color input is a valid hex color code (between 0x000000 and 0xFFFFFF)
-            if (color < 0 or color > 0xFFFFFF):
-                await interaction.response.send_message("Invalid color. Please provide a valid hex color code.", ephemeral=True)
-                return
-            embed = discord.Embed(title=title, description=description, color=color)
-            embed.add_field(name="Meeting Information", value=meeting, inline=False)
-            # -------------------------------------------
-            # Add additional sections if they are provided
-            # -------------------------------------------
-            if section1:
-                embed.add_field(name="", value=section1, inline=False)
-            if section2:
-                embed.add_field(name="", value=section2, inline=False)
-            if section3:
-                embed.add_field(name="", value=section3, inline=False)
+        color_int = int(clean_hex, 16) # convert hex color to int
+        # Check if the color input is a valid hex color code (between 0x000000 and 0xFFFFFF)
+        if (0 <= color_int >= 0xFFFFFF):
+            raise ValueError("Hex Not In Range")
+    except ValueError:
+        await interaction.response.send_message("Wrong color format. Please provide the correct 6-digit hex code.",ephemeral=True)
 
-            logging.info(f"{interaction.user} with role {interaction.user.top_role.name} used /announce with title: {title}, meeting: {meeting}, description: {description}, section1: {section1}, section2: {section2}, section3: {section3}, color: {color}")
-            await interaction.response.send_message(embed=embed)
-        else:
-            logging.info(f"{interaction.user} with role {interaction.user.top_role.name} tried to use /announce with title: {title}, meeting: {meeting}, description: {description}, section1: {section1}, section2: {section2}, section3: {section3}, color: {color} but does not have permission.")
-            await interaction.response.send_message("You do not have permission to use that command.", ephemeral=True)
+    # Create embed
+    embed = discord.Embed(
+        title=title,
+        description=description,
+        color=color_int
+    )
+
+    # -------------------------------------------
+    # Add additional sections if they are provided
+    # -------------------------------------------
+    if meeting:
+        embed.add_field(name="📅 Meeting Information", value=meeting, inline=False)
+    if section1:
+        embed.add_field(name="ℹ️ Additional Info", value=section1, inline=False)
+    if section2:
+        embed.add_field(name="📌 Notes", value=section2, inline=False)
+
+    # Add Footer for author attribution
+    embed.set_footer(
+        text=f"Announced by {interaction.user.display_name}", 
+        icon_url=interaction.user.display_avatar.url
+    )
+
+    try:
+        # Send the message to the targeted channel
+        content = ping.mention if ping else None
+        
+        await channel.send(content=content, embed=embed)
+        logging.info(f"{interaction.user} ({interaction.user.id}) with role {interaction.user.top_role.name} used /announce in #{channel.name}")
+        await interaction.response.send_message(f"Announcement sent to {channel.mention}.", ephemeral=True)
+
+    except discord.Forbidden:
+        await interaction.response.send_message(f"I do not have permission to send messages or embeds in {channel.mention}.", ephemeral=True)
     except Exception as e:
         logging.exception(e)
+        if not interaction.response.is_done():
+            await interaction.response.send_message("Some error has occurred while sending the announcement.", ephemeral=True)
 
 # =============================
 # GLOBAL ERROR HANDLER
