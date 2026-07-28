@@ -422,10 +422,76 @@ async def unban(interaction: discord.Interaction, user: discord.User):
         if not interaction.response.is_done():
             await interaction.response.send_message("Some error has occured while processing the command.",ephemeral=True)
 
-# Command that mutes a user in the server.
+# =============================
+# MUTE COMMAND
+# =============================
+@bot.tree.command(name="mute", description="Timesout/Mutes a user from text/voice channels.")
+@app_commands.default_permissions(moderate_members=True)
+@app_commands.checks.has_permissions(moderate_members=True)
+@app_commands.describe(
+    user="The user to mute",
+    duration="Duration format e.g., 10m, 2h, 1d.",
+    reason="Reason for the mute (optional)"
+)
+async def mute(
+    interaction: discord.Interaction,
+    user: discord.Member,
+    duration: str,
+    reason: str | None=None
+):
+    try:
+        await user.timeout()
 
-# Command that unmutes a user in the server.
+        # Server mute them in voice directly i they are currently in a voice channel
+        if user.voice and user.voice.channel:
+            try:
+                # Edit member data
+                await user.edit(mute=True,reason=reason)
+            except discord.HTTPException:
+                pass
+        logging.info(f"{interaction.user} ({interaction.user.id}) muted {user.name} for {duration} for reason: {reason}")
+        await interaction.response.send_message(f"Muted {user.name} for {duration}. Reason: {reason or 'None Provided'}", ephemeral=True)
+    except discord.Forbidden:
+        await interaction.response.send_message(f"Failed to mute {user.name}. I lack the permission to do so.", ephemeral=True)
+    except Exception as e:
+        logging.exception(e)
+        if not interaction.response.is_done():
+            await interaction.response.send_message("Some error has occured while processing the command.", ephemeral=True)
 
+# =============================
+# UNMUTE COMMAND
+# =============================
+@bot.tree.command(name="unmute", description="Removes the timeout/mute from a user.")
+@app_commands.default_permissions(moderate_members=True)
+@app_commands.checks.has_permissions(moderate_members=True)
+@app_commands.describe(
+    user="The user to unmute",
+    reason="Reason for unmuting (optional)"
+)
+async def unmute(
+    interaction: discord.Interaction, 
+    user: discord.Member, 
+    reason: str | None=None
+):
+    try:
+        # Removes timeout
+        await user.timeout(None, reason=reason)
+
+        # Unmute in voice channel
+        if user.voice and user.voice.channel:
+            try:
+                await user.edit(mute=False, reason=reason)
+            except discord.HTTPException:
+                pass
+
+        logging.info(f"{interaction.user} ({interaction.user.id}) unmuted {user.name} ({user.id}). Reason: {reason}")
+        await interaction.response.send_message(f"Unmuted {user.name}. Reason: {reason or 'None Provided'}", ephemeral=True)
+    except discord.Forbidden:
+        await interaction.response.send_message(f"Failed to unmute {user.name}. I lack the permissions needed to do so.", ephemeral=True)
+    except Exception as e:
+        logging.exception(e)
+        if not interaction.response.is_done():
+            await interaction.response.send_message("Some error has occured while processing the command.", ephemeral=True)
 # Command that warns a user in the server.
 
 # Command that shows the warnings of a user in the server.
