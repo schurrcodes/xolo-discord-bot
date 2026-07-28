@@ -58,6 +58,17 @@ def save_user_message(user_id: int, message: str):
         json.dump(data, f, indent=4)
 
 # =============================
+# DURATION CONVERSION HELPER
+#==============================
+def parse_duration(duration_str: str) -> int | None:
+    # Parse durations string 60s, 30m, 2h into seconds
+    # Check for empty strings, missing values, and non string inputs
+    if not duration_str or not isinstance(duration_str, str):
+        return None
+
+
+
+# =============================
 # PING COMMAND
 # A command that replies with Pong! (Future: will add latency in ms).
 # =============================
@@ -439,6 +450,18 @@ async def mute(
     duration: str,
     reason: str | None=None
 ):
+    # Self/Hierarchy protection
+    if user == interaction.user:
+        await interaction.response.send_message("You cannot mute yourself.", ephemeral=True)
+        return
+    if interaction.guild.me.top_role <= user.top_role:
+        await interaction.response.send_message(f"Failed to mute {user.name}. My highest role is not high enough.", ephemeral=True)
+        return
+
+    if interaction.user != interaction.guild.owner and interaction.user.top_role <= user.top_role:
+        await interaction.response.send_message(f"Failed to mute {user.name}. You cannot mute someone with an equal or higher role.", ephemeral=True)
+        return
+
     try:
         await user.timeout()
 
