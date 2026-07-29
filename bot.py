@@ -4,6 +4,7 @@ from discord import app_commands
 import logging
 from dotenv import load_dotenv
 import datetime
+from datetime import datetime, timezone, timedelta
 import json
 import os
 import sys
@@ -38,25 +39,41 @@ async def on_ready():
 # =============================
 # JSON STORAGE HELPER
 # =============================
-DATA_FILE = "saved_messages.json" # STORE SAVE MESSAGES IN JSON
 
-# Loads saved messages within the DATA_FILE by reading
+DATA_FILES = ["saved_messages.json", "warnings.json"] # STORE SAVE MESSAGES IN JSON
+
+# Loads saved messages within the DATA_FILES by reading
 def load_saved_messages() -> dict:
-    if not os.path.exists(DATA_FILE):
+    if not os.path.exists(DATA_FILES[0]):
         return {}
     try:
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
+        with open(DATA_FILES[0], "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return {}
     
-# Saves/Writes user message into DATA_FILE
+# Saves/Writes user message into DATA_FILES
 def save_user_message(user_id: int, message: str):
     data = load_saved_messages()
     data[str(user_id)] = message
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
+    with open(DATA_FILES[0], "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
 
+# Loads warnings from the DATA file by reading
+def load_warnings() -> dict:
+    if not os.path.exists(DATA_FILES[1]):
+        return {}
+    try:
+        with open(DATA_FILES[1], "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+# Saves the warnings dictionary back into the DATA_FILE
+def save_warnings(data: dict):
+    with open(DATA_FILES[1], "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4)
+        
 # =============================
 # DURATION CONVERSION HELPER
 #==============================
@@ -65,8 +82,45 @@ def parse_duration(duration_str: str) -> int | None:
     # Check for empty strings, missing values, and non string inputs
     if not duration_str or not isinstance(duration_str, str):
         return None
+    duration_str = duration_str.strip()
+    if len(duration_str) < 2:
+        return None
 
+    # Extract unit and numerical value safely
+    unit = duration_str[-1].lower()
+    number_part = duration_str[:-1]
 
+    if not number_part.isdigit():
+        return None
+    
+    value = int(number_part)
+
+    # Return converted seconds based on unit
+    if unit == 's':
+        return value
+    elif unit == 'm':
+        return value * 60
+    elif unit == 'h':
+        return value * 3600
+    elif unit == 'd':
+        return value * 86400
+
+    return None
+
+# =============================
+# DATETIME Utilities
+# =============================
+def calculate_timout(seconds: int | float) -> datetime:
+    """ safely calculates a future utc timeout using standard datetime. """
+    # Guard against non numeric or wrong types
+    if not isinstance(seconds, (int, float)):
+        return None
+    # Guard against negative or wrong time steps
+    if seconds <= 0:
+        raise ValueError("Timeout duration cannot be negative.")
+
+    # Return the standard datetime calculation
+    return datetime.now(timezone.utc) + timedelta(seconds=seconds)
 
 # =============================
 # PING COMMAND
@@ -462,8 +516,23 @@ async def mute(
         await interaction.response.send_message(f"Failed to mute {user.name}. You cannot mute someone with an equal or higher role.", ephemeral=True)
         return
 
+    # Parse and validate duration
+    # e.g., 10m into seconds
+    seconds = parse_duration(duration)
+    if seconds is None or seconds < 1:
+        await interaction.response.send_message("Wrong duration format. Use numbers followed by 's', 'm', 'h', or 'd'.", ephemeral=True)
+        return
+
+    # Calculate the expiration datetime
+    timeout_until = calculate_timout(seconds)
+    if timeout_until is None:
+        await interaction.response.send_message(
+            "Invalid duration. Please give a positive duration.", ephemeral=True
+        )
+        return
     try:
-        await user.timeout()
+        # Apply timeout
+        await user.timeout(timeout_until, reason=reason)
 
         # Server mute them in voice directly i they are currently in a voice channel
         if user.voice and user.voice.channel:
@@ -515,6 +584,7 @@ async def unmute(
         logging.exception(e)
         if not interaction.response.is_done():
             await interaction.response.send_message("Some error has occured while processing the command.", ephemeral=True)
+
 # Command that warns a user in the server.
 
 # Command that shows the warnings of a user in the server.
