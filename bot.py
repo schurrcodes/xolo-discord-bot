@@ -73,7 +73,7 @@ def load_warnings() -> dict:
 def save_warnings(data: dict):
     with open(DATA_FILES[1], "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
-        
+
 # =============================
 # DURATION CONVERSION HELPER
 #==============================
@@ -415,17 +415,26 @@ async def poll(
 @app_commands.default_permissions(kick_members=True) # This decorator ensures that only users with the kick_members permission can use this command.
 @app_commands.checks.has_permissions(kick_members=True)
 async def kick(interaction: discord.Interaction, user: discord.Member, reason: str=None):
+    # Prevent kicking yourself
+    if user == interaction.user:
+        await interaction.response.send_message("You cannot kick yourself.", ephemeral=True)
+        return
+    # Checks if the bot is trying to ban someone higher or equal in role hierarchy
+    if interaction.guild.me.top_role <= user.top_role:
+        await interaction.response.send_message(f"Failed to kick {user.name}. My highest role is not high enough.", ephemeral=True)
+        return
+    # Check moderator role hierarchy to prevent kicking higher/equal ranks
+    if interaction.user != interaction.guild.owner and interaction.user.top_role <= user.top_role:
+        await interaction.response.send_message(f"Failed to kick {user.name}. You cannot kick someone with an equal or higher role than you.", ephemeral=True)
+        return
+
     try:
-        if (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.kick_members):
-            try:
-                await user.kick(reason=reason) # build-in function that kicks the user from the server
-                logging.info(f"{interaction.user} with role {interaction.user.top_role.name} used /kick to kick {user.name} for reason: {reason}") # Log user interaction
-                await interaction.response.send_message(f"Kicked {user.name} from the server for reason: {reason}", ephemeral=True)
-            except discord.Forbidden:
-                await interaction.response.send_message(f"Failed to kick {user.name}. I may not have permission to kick that user.", ephemeral=True)
-        else:
-            logging.info(f"{interaction.user} with role {interaction.user.top_role.name} tried to use /kick to kick {user.name} for reason: {reason} but does not have permission.") # Log user interaction
-            await interaction.response.send_message("You do not have permission to use that command.", ephemeral=True)
+        await user.kick(reason=reason) # build-in function that kicks the user from the server
+        logging.info(f"{interaction.user} with role {interaction.user.top_role.name} used /kick to kick {user.name} for reason: {reason}") # Log user interaction
+        await interaction.response.send_message(f"Kicked {user.name} from the server for reason: {reason}", ephemeral=True)
+    except discord.Forbidden:
+        await interaction.response.send_message(f"Failed to kick {user.name}. I may not have permission to kick that user.", ephemeral=True)
+        logging.info(f"{interaction.user} with role {interaction.user.top_role.name} tried to use /kick to kick {user.name} for reason: {reason} but does not have permission.") # Log user
     except Exception as e:
         logging.exception(e)
         if not interaction.response.is_done():
@@ -585,11 +594,95 @@ async def unmute(
         if not interaction.response.is_done():
             await interaction.response.send_message("Some error has occured while processing the command.", ephemeral=True)
 
-# Command that warns a user in the server.
+# =============================
+# WARN COMMAND 
+# =============================
+@bot.tree.command(name="warn", description="Issues a warning to a member.")
+@app_commands.default_permissions(moderate_members=True)
+@app_commands.checks.has_permissions(moderate_members=True)
+async def warn(interaction: discord.Interaction, user: discord.Member, reason: str):
+    if user == interaction.user:
+        await interaction.response.send_message("You cannot warn yourself.", ephemeral=True)
+        return
 
-# Command that shows the warnings of a user in the server.
+    if interaction.user != interaction.guild.owner and interaction.user.top_role <= user.top_role:
+        await interaction.response.send_message(f"You cannot warn {user.name}.", ephemeral=True)
+        return
 
-# Command that clears the warnings of a user in the server.
+    data = load_warnings()
+    guild_id = str(interaction.guild_id)
+    user_id = str(user.id)
+
+    # initialize nested dictionaries if they don't exist
+    if guild_id not in data:
+        data[guild_id] = {}
+    if user_id not in data[guild_id]:
+        data[guild_id][user_id] = []
+
+# =============================
+# WARNINGS COMMAND
+# =============================
+@bot.tree.command(name="warnings", description="Views active warnings for a member.")
+@app_commands.default_permissions(moderate_members=True)
+@app_commands.checks.has_permissions(moderate_members=True)
+async def warnings(interaction: discord.Interaction, user: discord.Member, warn_id: int | None):
+    # Display the number of warnings the chosen user currently contains.
+    data = load_warnings()
+    guild_id = str(interaction.guild_id)
+    user_id = str(user.id)
+
+    user_warns = data.get(guild_id, {}).get(user_id, [])
+
+    if not user_warns:
+        await interaction.response.send_message(f"{user.name} has no warnings on record.", ephemeral=True)
+        return
+
+    embed = discord.Embed(title=f"Warnings for {user.display_name} ({len(user_warns)} total.)", color=discord.Color.yellow())
+
+    for item in user_warns:
+        # Get the current datetime
+        dt = datetime.fromisoformat(item["timestamp"])
+        unix_ts = int(dt.timestamp())
+
+        embed.add_field(
+            name=f"Warning ID: #{item['warn_id']}",
+            value=f"Reason: {item['reason']}\nModerator: <@{item['moderator_id']}>\nDate: <t:{unix_ts}:f>"
+        )
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+# =============================
+# CLEAR WARNINGS COMMAND 
+# =============================
+@bot.tree.command(name="clearwarnings", description="Clears all warnings (or a specific ID) for a user.")
+@app_commands.default_permissions(moderate_members=True)
+@app_commands.checks.has_permissions(moderate_members=True)
+async def clearwarnings(interaction: discord.Interaction, user: discord.Member, warn_id: int | None):
+    data = load_warnings()
+    guild_id = str(interaction.guild_id)
+    user_id = str(user.id)
+
+    user_warns = data.get(guild_id, {}).get(user.id, [])
+
+    if not user_warns:
+        await interaction.response.send_message(f"{user.name} has no warnings to clear.", ephemeral=True)
+        return
+
+    if warn_id is not None:
+        # Filter out the specific warning ID
+        filtered_warns = [w for w in user_warns if w["warn_id"] != warn_id]
+        if len(filtered_warns) == len(user_warns):
+            await interaction.response.send_message(f"Could not find warning {warn_id} for {user.name}.", ephemeral=True)
+            return
+        data[guild_id][user_id] = filtered_warns
+        msg = f"Cleared warning {warn_id} for {user.name}."
+    else:
+        #Clear all warnings
+        data[guild_id][user_id] = []
+        msg = f"Cleared all warnings for {user.name}."
+
+    save_warnings(data)
+    await interaction.response.send_message(msg, ephemeral=True)
 
 # --------------------------------
 # Club Purpose Commands WITH Permission Checks
