@@ -52,8 +52,10 @@ async def on_app_command_error(interaction: discord.Interaction, error: app_comm
 @app_commands.default_permissions(administrator=True)
 async def sync(interaction: discord.Interaction):
     if await bot.is_owner(interaction.user):
+        # Defer immediately to buy time (up to 15 minutes instead of 3 seconds)
+        await interaction.response.defer(ephemeral=True)
         synced = await bot.tree.sync()
-        await interaction.response.send_message(f"Synced {len(synced)} commands.", ephemeral=True)
+        await interaction.followup.send(f"Synced {len(synced)} commands.", ephemeral=True)
     else:
         await interaction.response.send_message("Only the bot owner can use this.", ephemeral=True)
 
