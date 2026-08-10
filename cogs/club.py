@@ -11,6 +11,12 @@ class Club(commands.Cog):
     # Slash command group: /club
     club_group = app_commands.Group(name="club", description="General club administrative commands")
 
+    # Slash command group: /set
+    set_group = app_commands.Group(name="set", description="Officer settings commands")
+
+    # =======================================
+    # /club GROUP COMMANDS
+    # =======================================
     @club_group.command(name="announce", description="Announces a message in the server.")
     @app_commands.default_permissions(manage_messages=True)
     @app_commands.checks.has_permissions(manage_messages=True)
@@ -67,6 +73,41 @@ class Club(commands.Cog):
 
         await interaction.response.send_message("Poll has been created.", ephemeral=True)
         await interaction.channel.send(poll=poll_obj)
+
+    # =====================================
+    # STANDALONE MEMBER COMMANDS
+    # =====================================
+    @app_commands.command(name="links", description="Shows important club links.")
+    async def links(self, interaction: discord.Interaction):
+        # Fetch and show links
+        pass
+
+    @app_commands.command(name="meeting", description="Displays details for the next meeting.")
+    async def meeting(self, interaction: discord.Interaction):
+        # Fetch and show meeting info
+        pass
+
+    # ====================================
+    # /set GROUP COMMANDS
+    # ====================================
+    @set_group.command(name="links", description="Set important links for the club.")
+    @app_commands.default_permissions(manage_messages=True)
+    @app_commands.checks.has_permissions(manage_messages=True)
+    async def set_links(
+        self, 
+        interaction: discord.Interaction, 
+        site: str | None = None,
+        portal: str | None = None
+    ):
+        # Save links logic
+        await interaction.response.send_message("Links updated!", ephemeral=True)
+
+    @set_group.command(name="meeting", description="Update the next meeting details.")
+    @app_commands.default_permissions(manage_messages=True)
+    @app_commands.checks.has_permissions(manage_messages=True)
+    async def set_meeting(self, interaction: discord.Interaction, date_and_time: str, location: str):
+        # Save meeting logic
+        await interaction.response.send_message("Meeting details updated!", ephemeral=True)
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Club(bot))
