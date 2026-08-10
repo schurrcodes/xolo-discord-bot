@@ -50,11 +50,31 @@ class General(commands.Cog):
     @app_commands.command(name="help", description="Provides a list of avaliable commands and their descriptions.")
     async def help(self, interaction: discord.Interaction):
         logging.info(f"{interaction.user} used /help")
+
+        # General Group Commands
+        # Display title and description for the help embed
         embed = discord.Embed(title="Help", color=discord.Color.blue())
+        embed.add_field(name="Available Commands", value="Here are the commands you can use:", inline=False)
         embed.add_field(name="/ping", value="Replies with pong and the bot's latency.", inline=False)
         embed.add_field(name="/greet", value="Replies with Hello!", inline=False)
         embed.add_field(name="/userinfo", value="Gives info about the user who used the command.", inline=False)
         embed.add_field(name="/serverinfo", value="Gives info about the server.", inline=False)
+
+        # Check if the user has certain permissions to display certain groups/commands
+        if interaction.user.guild_permissions.manage_roles or interaction.user.guild_permissions.manage_channels:
+            embed.add_field(name="/mod", value="Moderation commands (requires manage roles or manage channels permission).", inline=False)
+        if interaction.user.guild_permissions.manage_roles:
+            embed.add_field(name="/role", value="Role config commands (requires manage roles permission).", inline=False)
+
+        # Club Group Commands
+        if interaction.user.guild_permissions.manage_messages:
+            embed.add_field(name="/club", value="Club administrative commands (requires manage messages permission).", inline=False)
+
+        # CS Group Commands
+        if interaction.user.guild_permissions.manage_messages:
+            embed.add_field(name="/cs", value="CS administrative commands (requires manage messages permission).", inline=False)
+
+
         await interaction.response.send_message(embed=embed)
 
 async def setup(bot: commands.Bot):
