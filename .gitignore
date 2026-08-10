@@ -1,0 +1,15 @@
+# Ignore python venv folder
+.venv/
+
+# Ignore env files
+.env
+
+# Ignore bot logs
+bot.log
+*.log
+
+# Ignore VsCode settings folder
+.vscode/
+
+# Ignore caches
+__pycache__
