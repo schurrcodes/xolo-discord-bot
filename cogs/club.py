@@ -3,7 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 import logging
 import datetime
-from utils.json_storage import load_club_info, save_club_info
+from utils.json_storage import load_club_info, save_club_info, load_welcome_channels, save_welcome_channels
 
 class Club(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -36,6 +36,7 @@ class Club(commands.Cog):
         try:
             color_int = int(color.lstrip('#'), 16)
         except ValueError:
+            logging.info(f"User {interaction.user} provided a wrong color format for /club announce: {color}")
             await interaction.response.send_message("Wrong color format. Use a 6-digit hex code.", ephemeral=True)
             return
 
@@ -50,6 +51,7 @@ class Club(commands.Cog):
         embed.set_footer(text=f"Announced by {interaction.user.display_name}", icon_url=interaction.user.display_avatar.url)
 
         content = ping.mention if ping else None
+        logging.info(f"User {interaction.user} is sending an announcement to channel {channel.id} with title '{title}'")
         await channel.send(content=content, embed=embed)
         await interaction.response.send_message(f"Announcement sent to {channel.mention}.", ephemeral=True)
 
@@ -72,6 +74,7 @@ class Club(commands.Cog):
         for opt in options:
             poll_obj.add_answer(text=opt)
 
+        logging.info(f"User {interaction.user} created a poll in channel {interaction.channel.id} with question '{question}' and options {options}")
         await interaction.response.send_message("Poll has been created.", ephemeral=True)
         await interaction.channel.send(poll=poll_obj)
 
@@ -195,5 +198,13 @@ class Club(commands.Cog):
         save_club_info(info)
         await interaction.response.send_message(f"Next meeting set for {date_and_time} at {location}!", ephemeral=True)
 
+    @set_group.command(name="welcome", description="Set the welcome channel for new members.")
+    @app_commands.default_permissions(manage_message=True)
+    @app_commands.checks.has_permissions(manage_messages=True)
+    async def set_welcome(self, 
+        interaction: discord.Interaction, 
+        channel: discord.TextChannel
+    ):
+        
 async def setup(bot: commands.Bot):
     await bot.add_cog(Club(bot))

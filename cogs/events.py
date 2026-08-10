@@ -7,21 +7,7 @@ from utils.json_storage import load_welcome_channels, save_welcome_channel
 class Events(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-
-    @app_commands.command(name="setwelcome", description="Sets the channel where welcome messages are sent.")
-    @app_commands.default_permissions(manage_guild=True)
-    @app_commands.checks.has_permissions(manage_guild=True)
-    async def setwelcome(
-        self, 
-        interaction: discord.Interaction, 
-        channel: discord.TextChannel
-    ):
-        save_welcome_channel(interaction.guild_id, channel.id)
-        await interaction.response.send_message(
-            f"Welcome channel has been set to {channel.mention}!", 
-            ephemeral=True
-        )
-
+    
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
         logging.info(f"{member.name} joined {member.guild.name}")

@@ -10,7 +10,9 @@ class Moderation(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="giverole", description="Gives a role to a user.")
+    mod_group = app_commands.Group(name="mod", description="Moderation commands")
+
+    @mod_group.command(name="giverole", description="Gives a role to a user.")
     @app_commands.default_permissions(manage_roles=True)
     @app_commands.checks.has_permissions(manage_roles=True)
     async def giverole(self, interaction: discord.Interaction, user: discord.Member, role: discord.Role):
@@ -24,7 +26,7 @@ class Moderation(commands.Cog):
         except discord.Forbidden:
             await interaction.response.send_message(f"Failed to give {role.name} to {user.name}. Insufficient permissions.", ephemeral=True)
 
-    @app_commands.command(name="removerole", description="Removes a role from a user.")
+    @mod_group.command(name="removerole", description="Removes a role from a user.")
     @app_commands.default_permissions(manage_roles=True)
     @app_commands.checks.has_permissions(manage_roles=True)
     async def removerole(self, interaction: discord.Interaction, user: discord.Member, role: discord.Role):
@@ -38,14 +40,14 @@ class Moderation(commands.Cog):
         except discord.Forbidden:
             await interaction.response.send_message(f"Failed to remove {role.name} from {user.name}. Insufficient permissions.", ephemeral=True)
 
-    @app_commands.command(name="embed", description="Embeds a message in the server.")
+    @mod_group.command(name="embed", description="Embeds a message in the server.")
     @app_commands.default_permissions(manage_messages=True)
     @app_commands.checks.has_permissions(manage_messages=True)
     async def embed(self, interaction: discord.Interaction, title: str, description: str):
         embed = discord.Embed(title=title, description=description, color=discord.Color.blue())
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="say", description="Repeats a message or sends your saved default message.")
+    @mod_group.command(name="say", description="Repeats a message or sends your saved default message.")
     @app_commands.default_permissions(manage_messages=True)
     @app_commands.checks.has_permissions(manage_messages=True)
     async def say(self, interaction: discord.Interaction, message: str | None = None):
@@ -62,7 +64,7 @@ class Moderation(commands.Cog):
         await interaction.channel.send(text_to_send)
         await interaction.response.send_message("Message has been sent.", ephemeral=True)
 
-    @app_commands.command(name="clear", description="Deletes a specified number of messages from the channel.")
+    @mod_group.command(name="clear", description="Deletes a specified number of messages from the channel.")
     @app_commands.default_permissions(manage_messages=True)
     @app_commands.checks.has_permissions(manage_messages=True)
     async def clear(self, interaction: discord.Interaction, amount: int):
@@ -73,7 +75,7 @@ class Moderation(commands.Cog):
         deleted = await interaction.channel.purge(limit=amount)
         await interaction.followup.send(f"Deleted {len(deleted)} messages.", ephemeral=True)
 
-    @app_commands.command(name="kick", description="Kicks a user from the server.")
+    @mod_group.command(name="kick", description="Kicks a user from the server.")
     @app_commands.default_permissions(kick_members=True)
     @app_commands.checks.has_permissions(kick_members=True)
     async def kick(self, interaction: discord.Interaction, user: discord.Member, reason: str = None):
@@ -83,7 +85,7 @@ class Moderation(commands.Cog):
         await user.kick(reason=reason)
         await interaction.response.send_message(f"Kicked {user.name} for: {reason}", ephemeral=True)
 
-    @app_commands.command(name="ban", description="Bans a user from the server.")
+    @mod_group.command(name="ban", description="Bans a user from the server.")
     @app_commands.default_permissions(ban_members=True)
     @app_commands.checks.has_permissions(ban_members=True)
     async def ban(self, interaction: discord.Interaction, user: discord.Member, reason: str = None):
@@ -93,14 +95,14 @@ class Moderation(commands.Cog):
         await user.ban(reason=reason)
         await interaction.response.send_message(f"Banned {user.name} for: {reason}", ephemeral=True)
 
-    @app_commands.command(name="unban", description="Unbans a user from the server.")
+    @mod_group.command(name="unban", description="Unbans a user from the server.")
     @app_commands.default_permissions(ban_members=True)
     @app_commands.checks.has_permissions(ban_members=True)
     async def unban(self, interaction: discord.Interaction, user: discord.User):
         await interaction.guild.unban(user)
         await interaction.response.send_message(f"Unbanned {user.name}.", ephemeral=True)
 
-    @app_commands.command(name="mute", description="Mutes a user.")
+    @mod_group.command(name="mute", description="Mutes a user.")
     @app_commands.default_permissions(moderate_members=True)
     @app_commands.checks.has_permissions(moderate_members=True)
     async def mute(self, interaction: discord.Interaction, user: discord.Member, duration: str, reason: str | None = None):
@@ -112,14 +114,14 @@ class Moderation(commands.Cog):
         await user.timeout(timeout_until, reason=reason)
         await interaction.response.send_message(f"Muted {user.name} for {duration}.", ephemeral=True)
 
-    @app_commands.command(name="unmute", description="Unmutes a user.")
+    @mod_group.command(name="unmute", description="Unmutes a user.")
     @app_commands.default_permissions(moderate_members=True)
     @app_commands.checks.has_permissions(moderate_members=True)
     async def unmute(self, interaction: discord.Interaction, user: discord.Member, reason: str | None = None):
         await user.timeout(None, reason=reason)
         await interaction.response.send_message(f"Unmuted {user.name}.", ephemeral=True)
 
-    @app_commands.command(name="warn", description="Issues a warning to a member.")
+    @mod_group.command(name="warn", description="Issues a warning to a member.")
     @app_commands.default_permissions(moderate_members=True)
     @app_commands.checks.has_permissions(moderate_members=True)
     async def warn(self, interaction: discord.Interaction, user: discord.Member, reason: str):
@@ -140,7 +142,7 @@ class Moderation(commands.Cog):
         save_warnings(data)
         await interaction.response.send_message(f"Warned {user.name} (ID: #{warn_id}).", ephemeral=True)
 
-    @app_commands.command(name="warnings", description="Views active warnings for a member.")
+    @mod_group.command(name="warnings", description="Views active warnings for a member.")
     @app_commands.default_permissions(moderate_members=True)
     @app_commands.checks.has_permissions(moderate_members=True)
     async def warnings(self, interaction: discord.Interaction, user: discord.Member):
@@ -155,7 +157,7 @@ class Moderation(commands.Cog):
             embed.add_field(name=f"Warning ID: #{item['warn_id']}", value=f"Reason: {item['reason']}\nModerator: <@{item['moderator_id']}>", inline=False)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @app_commands.command(name="clearwarnings", description="Clears warnings for a user.")
+    @mod_group.command(name="clearwarnings", description="Clears warnings for a user.")
     @app_commands.default_permissions(moderate_members=True)
     @app_commands.checks.has_permissions(moderate_members=True)
     async def clearwarnings(self, interaction: discord.Interaction, user: discord.Member, warn_id: int | None = None):

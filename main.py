@@ -5,6 +5,8 @@ import logging
 from dotenv import load_dotenv
 import os
 import sys
+import asyncio
+from cogs.roles import RoleButtonView
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
@@ -14,15 +16,21 @@ file_handler = logging.FileHandler(filename="bot.log", encoding="utf-8", mode="w
 console_handler = logging.StreamHandler(sys.stdout)
 logging.basicConfig(level=logging.INFO, handlers=[file_handler, console_handler])
 
+# Setup intents
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
+# Setup bot
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
     logging.info(f"Logged in as {bot.user.name}")
+    
+    # Register the persistent view listener
+    bot.add_view(RoleButtonView())
+
     try:
         synced = await bot.tree.sync()
         logging.info(f"Synced {len(synced)} commands on startup.")
@@ -34,8 +42,10 @@ async def on_ready():
 @bot.tree.error
 async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
     if isinstance(error, app_commands.MissingPermissions):
+        logging.info(f"User {interaction.user} lacks permissions for /{interaction.command.name}: {error}")
         msg = "You do not have permission to use that command."
     elif isinstance(error, app_commands.BotMissingPermissions):
+        logging.info(f"Bot lacks permissions for /{interaction.command.name}: {error}")
         msg = "I do not have the required permissions to run this command."
     else:
         logging.error(f"Unhandled command error in /{interaction.command.name}: {error}")
@@ -43,11 +53,14 @@ async def on_app_command_error(interaction: discord.Interaction, error: app_comm
 
     try:
         if interaction.response.is_done():
+            logging.warning(f"Interaction response already was sent for /{interaction.command.name}, sending followup instead.")
             await interaction.followup.send(msg, ephemeral=True)
         else:
+            logging.info(f"Sending error message for /{interaction.command.name}: {msg}")
             await interaction.response.send_message(msg, ephemeral=True)
     except discord.HTTPException:
         #Prevent crashes if the interaction expired completely
+        logging.error(f"Failed to send error message for /{interaction.command.name}: {error}")
         pass
 
 @bot.tree.command(name="sync", description="Syncs commands. Bot Owner Only.")
@@ -83,12 +96,14 @@ async def main():
                 'cogs.moderation',
                 'cogs.club',
                 'cogs.cs',
-                'cogs.events'
+                'cogs.events',
+                'cogs.roles'
         ]
         for extension in initial_extensions:
+            logging.info(f"Loading extension: {extension}")
             await bot.load_extension(extension)
         await bot.start(TOKEN)
 
 if __name__ == "__main__":
-    import asyncio
+    logging.info("Starting bot...")
     asyncio.run(main())
