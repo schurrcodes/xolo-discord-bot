@@ -25,7 +25,9 @@ async def on_ready():
     logging.info(f"Logged in as {bot.user.name}")
     try:
         synced = await bot.tree.sync()
-        logging.info(f"Synced {len(synced)} commands.")
+        logging.info(f"Synced {len(synced)} commands on startup.")
+        for cmd in synced:
+            logging.info(f"Registered: /{cmd.name}")
     except Exception as e:
         logging.exception(f"Failed to sync commands: {e}")
 
@@ -55,6 +57,20 @@ async def sync(interaction: discord.Interaction):
         # Defer immediately to buy time (up to 15 minutes instead of 3 seconds)
         await interaction.response.defer(ephemeral=True)
         synced = await bot.tree.sync()
+
+        # Log each synced command specifically
+        for cmd in synced:
+            #Check if the command has subcommands or options 
+            if hasattr(cmd, 'options') and cmd.options:
+                sub_names = [opt.name for opt in cmd.options if opt.type.value == 1]
+                if sub_names:
+                    logging.info(f"Synced group commands: /{cmd.name} [Subcommands: {', '.join(sub_names)}]")
+                else:
+                    logging.info(f"Synced slash commands: /{cmd.name}")
+            else:
+                logging.info(f"Synced slash command: /{cmd.name}")
+
+        logging.info(f"Sync complete: {len(synced)} commands.")
         await interaction.followup.send(f"Synced {len(synced)} commands.", ephemeral=True)
     else:
         await interaction.response.send_message("Only the bot owner can use this.", ephemeral=True)
