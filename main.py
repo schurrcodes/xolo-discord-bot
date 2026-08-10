@@ -68,6 +68,7 @@ async def on_app_command_error(interaction: discord.Interaction, error: app_comm
 async def sync(interaction: discord.Interaction):
     if await bot.is_owner(interaction.user):
         # Defer immediately to buy time (up to 15 minutes instead of 3 seconds)
+        logging.info(f"Bot owner {interaction.user} initiated a command sync.")
         await interaction.response.defer(ephemeral=True)
         synced = await bot.tree.sync()
 
@@ -86,6 +87,7 @@ async def sync(interaction: discord.Interaction):
         logging.info(f"Sync complete: {len(synced)} commands.")
         await interaction.followup.send(f"Synced {len(synced)} commands.", ephemeral=True)
     else:
+        logging.warning(f"Unauthorized sync attempt by {interaction.user}.")
         await interaction.response.send_message("Only the bot owner can use this.", ephemeral=True)
 
 async def main():

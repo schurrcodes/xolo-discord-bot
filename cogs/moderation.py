@@ -10,7 +10,11 @@ class Moderation(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    mod_group = app_commands.Group(name="mod", description="Moderation commands")
+    mod_group = app_commands.Group(
+        name="mod", 
+        description="Moderation commands",
+        default_permissions=discord.Permissions(moderate_members=True, manage_roles=True, manage_messages=True)
+    )
 
     @mod_group.command(name="giverole", description="Gives a role to a user.")
     @app_commands.default_permissions(manage_roles=True)

@@ -51,11 +51,15 @@ class Roles(commands.Cog):
         # Register the global listener when the cog loads
         self.bot.add_listener(RoleButtonView().on_interaction)
 
-    role_group = app_commands.Group(name="role", description="Role config commands")
+    role_group = app_commands.Group(
+        name="role", 
+        description="Role config commands",
+        default_permissions=discord.Permissions(manage_roles=True, manage_messages=True)
+    )
 
     @role_group.command(name="rolepanel", description="Creates a custom button role panel.")
-    @app_commands.default_permissions(manage_roles=True)
-    @app_commands.checks.has_permissions(manage_roles=True)
+    @app_commands.default_permissions(manage_roles=True, manage_messages=True)
+    @app_commands.checks.has_permissions(manage_roles=True, manage_messages=True)
     async def set_rolepanel(
         self,
         interaction: discord.Interaction,

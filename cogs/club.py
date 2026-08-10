@@ -10,10 +10,17 @@ class Club(commands.Cog):
         self.bot = bot
 
     # Slash command group: /club
-    club_group = app_commands.Group(name="club", description="General club administrative commands")
+    club_group = app_commands.Group(
+        name="club", 
+        description="General club administrative commands"
+    )
 
     # Slash command group: /set
-    set_group = app_commands.Group(name="set", description="Officer settings commands")
+    set_group = app_commands.Group(
+        name="set",
+        description="Officer settings commands",
+        default_permissions=discord.Permissions(manage_messages=True)
+    )
 
     # =======================================
     # /club GROUP COMMANDS
