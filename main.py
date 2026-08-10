@@ -30,7 +30,7 @@ async def on_ready():
         logging.exception(f"Failed to sync commands: {e}")
 
 @bot.tree.error
-async def on_app_command_error(interation: discord.Interaction, error: app_commands.AppCommandError):
+async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
     if isinstance(error, app_commands.MissingPermissions):
         msg = "You do not have permission to use that command."
     elif isinstance(error, app_commands.BotMissingPermissions):
@@ -39,10 +39,14 @@ async def on_app_command_error(interation: discord.Interaction, error: app_comma
         logging.error(f"Unhandled command error in /{interaction.command.name}: {error}")
         msg = "An error occurred while running this command."
 
-    if interaction.response.is_done():
-        await interaction.followup.send(msg, ephemeral=True)
-    else:
-        await interaction.response.send_message(msg, ephemeral=True)
+    try:
+        if interaction.response.is_done():
+            await interaction.followup.send(msg, ephemeral=True)
+        else:
+            await interaction.response.send_message(msg, ephemeral=True)
+    except discord.HTTPException:
+        #Prevent crashes if the interaction expired completely
+        pass
 
 @bot.tree.command(name="sync", description="Syncs commands. Bot Owner Only.")
 @app_commands.default_permissions(administrator=True)
