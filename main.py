@@ -56,7 +56,13 @@ async def sync(interaction: discord.Interaction):
 async def main():
     async with bot:
         # Load Cogs automatically
-        initial_extensions = ['cogs.general', 'cogs.moderation', 'cogs.club', 'cogs.cs']
+        initial_extensions = [
+                'cogs.general',
+                'cogs.moderation',
+                'cogs.club',
+                'cogs.cs',
+                'cogs.events'
+        ]
         for extension in initial_extensions:
             await bot.load_extension(extension)
         await bot.start(TOKEN)
