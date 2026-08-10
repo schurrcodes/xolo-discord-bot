@@ -3,7 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 import logging
 import datetime
-from utils.json_storage import load_club_info, save_club_info, load_welcome_channels, save_welcome_channels
+from utils.json_storage import load_club_info, save_club_info, save_welcome_channel
 
 class Club(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -199,12 +199,14 @@ class Club(commands.Cog):
         await interaction.response.send_message(f"Next meeting set for {date_and_time} at {location}!", ephemeral=True)
 
     @set_group.command(name="welcome", description="Set the welcome channel for new members.")
-    @app_commands.default_permissions(manage_message=True)
+    @app_commands.default_permissions(manage_messages=True)
     @app_commands.checks.has_permissions(manage_messages=True)
     async def set_welcome(self, 
         interaction: discord.Interaction, 
         channel: discord.TextChannel
     ):
-        
+        save_welcome_channel(interaction.guild_id, channel.id)
+        await interaction.response.send_message(f"Welcome channel set to {channel.mention}!", ephemeral=True)
+
 async def setup(bot: commands.Bot):
     await bot.add_cog(Club(bot))
