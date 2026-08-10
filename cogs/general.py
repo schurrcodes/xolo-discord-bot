@@ -7,10 +7,10 @@ class General(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="ping", description="Replies with Pong!")
+    @app_commands.command(name="ping", description="Replies with pong and the bot's latency.")
     async def ping(self, interaction: discord.Interaction):
         logging.info(f"{interaction.user} used /ping")
-        await interaction.response.send_message("Pong!")
+        await interaction.response.send_message(f"Pong! Latency: {round(self.bot.latency * 1000)} ms")
 
     @app_commands.command(name="greet", description="Replies with Hello!")
     async def greet(self, interaction: discord.Interaction):
@@ -45,6 +45,16 @@ class General(commands.Cog):
         embed.add_field(name="Server ID", value=guild.id, inline=True)
         embed.add_field(name="Server Owner", value=guild.owner, inline=True)
         embed.add_field(name="Server Created At", value=guild.created_at.strftime("%Y-%m-%d %H:%M:%S"))
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="help", description="Provides a list of avaliable commands and their descriptions.")
+    async def help(self, interaction: discord.Interaction):
+        logging.info(f"{interaction.user} used /help")
+        embed = discord.Embed(title="Help", color=discord.Color.blue())
+        embed.add_field(name="/ping", value="Replies with pong and the bot's latency.", inline=False)
+        embed.add_field(name="/greet", value="Replies with Hello!", inline=False)
+        embed.add_field(name="/userinfo", value="Gives info about the user who used the command.", inline=False)
+        embed.add_field(name="/serverinfo", value="Gives info about the server.", inline=False)
         await interaction.response.send_message(embed=embed)
 
 async def setup(bot: commands.Bot):
