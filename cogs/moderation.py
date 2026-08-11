@@ -3,8 +3,14 @@ from discord.ext import commands
 from discord import app_commands
 import logging
 from datetime import datetime, timedelta
-from utils.json_storage import load_saved_messages, save_user_message, load_warnings, save_warnings
 from utils.helpers import parse_duration, calculate_timeout
+from utils.db import (
+    get_saved_message,
+    save_user_message,
+    add_warning,
+    get_warnings,
+    DB_NAME
+)
 
 class Moderation(commands.Cog):
     def __init__(self, bot: commands.Bot):
