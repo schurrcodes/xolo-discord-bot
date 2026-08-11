@@ -3,7 +3,12 @@ from discord.ext import commands
 from discord import app_commands
 import logging
 import datetime
-from utils.json_storage import load_club_info, save_club_info, save_welcome_channel
+import json
+from utils.db import (
+    get_club_info, 
+    set_club_info, 
+    save_welcome_channel
+)
 
 class Club(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -90,7 +95,10 @@ class Club(commands.Cog):
     # =====================================
     @app_commands.command(name="links", description="Shows important club links.")
     async def links(self, interaction: discord.Interaction):
-        data = load_club_info().get(str(interaction.guild_id), {}).get("links", {})
+        key = f"links:{interaction.guild_id}"
+        raw_data = await get_club_info(key)
+        
+        data = json.loads(raw_data) if raw_data else {}
 
         if not data:
             logging.info(f"{interaction.user.id} requested links, but none are set.")
@@ -103,11 +111,9 @@ class Club(commands.Cog):
             color=discord.Color.blue()
         )
 
-        # Create a View container to hold URL buttons
         view = discord.ui.View()
 
-        # Dynamically add URL buttons if the links exist
-        if "site" in data and data["site"]:
+        if data.get("site"):
             view.add_item(discord.ui.Button(
                 label="Google Site", 
                 url=data["site"], 
@@ -115,7 +121,7 @@ class Club(commands.Cog):
                 emoji="🌐"
             ))
 
-        if "portal" in data and data["portal"]:
+        if data.get("portal"):
             view.add_item(discord.ui.Button(
                 label="School Portal", 
                 url=data["portal"], 
@@ -123,7 +129,7 @@ class Club(commands.Cog):
                 emoji="🏫"
             ))
 
-        if "instagram" in data and data["instagram"]:
+        if data.get("instagram"):
             view.add_item(discord.ui.Button(
                 label="Instagram",
                 url=data["instagram"],
@@ -135,7 +141,10 @@ class Club(commands.Cog):
 
     @app_commands.command(name="meeting", description="Displays details for the next meeting.")
     async def meeting(self, interaction: discord.Interaction):
-        data = load_club_info().get(str(interaction.guild_id), {}).get("meeting", {})
+        key = f"meeting:{interaction.guild_id}"
+        raw_data = await get_club_info(key)
+        
+        data = json.loads(raw_data) if raw_data else {}
 
         if not data:
             await interaction.response.send_message("No upcoming meeting details found.", ephemeral=True)
@@ -162,23 +171,18 @@ class Club(commands.Cog):
         portal: str | None = None,
         instagram: str | None = None
     ):
-        info = load_club_info()
-        guild_id = str(interaction.guild_id)
-
-        if guild_id not in info:
-            info[guild_id] = {}
-        if "links" not in info[guild_id]:
-            info[guild_id]["links"] = {}
+        key = f"links:{interaction.guild_id}"
+        raw_data = await get_club_info(key)
+        data = json.loads(raw_data) if raw_data else {}
 
         if site:
-            info[guild_id]["links"]["site"] = site
+            data["site"] = site
         if portal:
-            info[guild_id]["links"]["portal"] = portal
+            data["portal"] = portal
         if instagram:
-            info[guild_id]["links"]["instagram"] = instagram
+            data["instagram"] = instagram
 
-        # Save links logic
-        save_club_info(info)
+        await set_club_info(key, json.dumps(data))
         await interaction.response.send_message("Updated club links!", ephemeral=True)
 
     @set_group.command(name="meeting", description="Update the next meeting details.")
@@ -188,21 +192,16 @@ class Club(commands.Cog):
         interaction: discord.Interaction, 
         date_and_time: str, 
         location: str,
-        details: str | None=None
+        details: str | None = None
     ):
-        info = load_club_info()
-        guild_id = str(interaction.guild_id)
-
-        if guild_id not in info:
-            info[guild_id] = {}
-        info[guild_id]["meeting"] = {
+        key = f"meeting:{interaction.guild_id}"
+        data = {
             "datetime": date_and_time,
             "location": location,
             "details": details or "No additional details were provided."
         }
 
-        # Save meeting logic
-        save_club_info(info)
+        await set_club_info(key, json.dumps(data))
         await interaction.response.send_message(f"Next meeting set for {date_and_time} at {location}!", ephemeral=True)
 
     @set_group.command(name="welcome", description="Set the welcome channel for new members.")
@@ -212,7 +211,7 @@ class Club(commands.Cog):
         interaction: discord.Interaction, 
         channel: discord.TextChannel
     ):
-        save_welcome_channel(interaction.guild_id, channel.id)
+        await save_welcome_channel(interaction.guild_id, channel.id)
         await interaction.response.send_message(f"Welcome channel set to {channel.mention}!", ephemeral=True)
 
 async def setup(bot: commands.Bot):
