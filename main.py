@@ -7,6 +7,10 @@ import os
 import sys
 import asyncio
 from cogs.roles import RoleButtonView
+from utils.db import (
+    init_db,
+    upsert_member
+)
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
@@ -25,12 +29,29 @@ intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
+async def setup_hook():
+    # Initialize the database and tables
+    await init_db()
+    logging.info("Databased initialized in setup_hook.")
+    # Setup Role button view
+    bot.add_view(RoleButtonView())
+    
+@bot.event
 async def on_ready():
     logging.info(f"Logged in as {bot.user.name}")
-    
-    # Register the persistent view listener
-    bot.add_view(RoleButtonView())
 
+    #Sync all current existing members into database
+    for guild in bot.guilds:
+        for member in guild.members:
+            await upsert_member(
+                guild_id=guild.id,
+                user_id=member.id,
+                username=str(member),
+                display_name=member.display_name,
+                joined_at=member.joined_at.isoformat() if member.joined_at else None,
+                is_bot=member.bot
+            )
+    logging.info("Server all guild members synced to database.")
     try:
         synced = await bot.tree.sync()
         logging.info(f"Synced {len(synced)} commands on startup.")
