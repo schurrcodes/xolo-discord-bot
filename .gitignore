@@ -15,8 +15,7 @@ bot.log
 bot.py
 
 # Ignore caches
-<<<<<<< HEAD
 __pycache__
-=======
-__pycache__
->>>>>>> 81abd2a2ba1f4708faf513eaac98b6443cdea418
+
+# Ignore JSON files
+*.json
