@@ -1,8 +1,7 @@
 import discord
 from discord.ext import commands
-from discord import app_commands
 import logging
-from utils.json_storage import load_welcome_channels, save_welcome_channel
+from utils.db import get_welcome_channel
 
 class Events(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -12,13 +11,12 @@ class Events(commands.Cog):
     async def on_member_join(self, member: discord.Member):
         logging.info(f"{member.name} joined {member.guild.name}")
 
-        welcome_data = load_welcome_channels()
-        channel_id = welcome_data.get(str(member.guild.id))
+        channel_id = await get_welcome_channel(member.guild.id)
 
         if not channel_id:
             return  # No welcome channel configured yet
 
-        # Try to get channel from cache first otherwise fetch via api
+        # Try to get channel from cache first otherwise fetch via API
         channel = member.guild.get_channel(channel_id)
         if channel is None:
             try:
