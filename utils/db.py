@@ -61,7 +61,7 @@ async def get_saved_message(user_id: int):
             return row[0] if row else None  
 
 async def save_user_message(user_id: int, message: str):
-    async with aiosqlite.connect(DB_NAME) as db:
+    async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
             INSERT INTO saved_messages (user_id, message)
             VALUES (?, ?)
@@ -73,7 +73,7 @@ async def save_user_message(user_id: int, message: str):
 # WARNINGS
 # =============================
 async def add_warning(guild_id: int, user_id: int, reason: str, moderator_id: int):
-    async with aiosqlite.connect(DB_NAME) as db:
+    async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
             INSERT INTO warnings (guild_id, user_id, reason, moderator_id)
             VALUES (?, ?, ?, ?)
@@ -81,7 +81,7 @@ async def add_warning(guild_id: int, user_id: int, reason: str, moderator_id: in
         await db.commit()
 
 async def get_warnings(guild_id: int, user_id: int) -> list:
-    async with aiosqlite.connect(DB_NAME) as db:
+    async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute("""
             SELECT id, reason, moderator_id, timestamp 
             FROM warnings 
@@ -94,13 +94,13 @@ async def get_warnings(guild_id: int, user_id: int) -> list:
 # WELCOME CHANNELS
 # =============================
 async def get_welcome_channel(guild_id: int) -> int | None:
-    async with aiosqlite.connect(DB_NAME) as db:
+    async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute("SELECT channel_id FROM welcome_channels WHERE guild_id = ?", (guild_id,)) as cursor:
             row = await cursor.fetchone()
             return row[0] if row else None
 
 async def save_welcome_channel(guild_id: int, channel_id: int):
-    async with aiosqlite.connect(DB_NAME) as db:
+    async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
             INSERT INTO welcome_channels (guild_id, channel_id)
             VALUES (?, ?)
@@ -112,7 +112,7 @@ async def save_welcome_channel(guild_id: int, channel_id: int):
 # CLUB INFO
 # =============================
 async def set_club_info(key: str, value: str):
-    async with aiosqlite.connect(DB_NAME) as db:
+    async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
             INSERT INTO club_info (key, value)
             VALUES (?, ?)
@@ -121,7 +121,7 @@ async def set_club_info(key: str, value: str):
         await db.commit()
 
 async def get_club_info(key: str) -> str | None:
-    async with aiosqlite.connect(DB_NAME) as db:
+    async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute("SELECT value FROM club_info WHERE key = ?", (key,)) as cursor:
             row = await cursor.fetchone()
             return row[0] if row else None
