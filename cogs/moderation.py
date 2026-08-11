@@ -9,8 +9,9 @@ from utils.db import (
     save_user_message,
     add_warning,
     get_warnings,
-    DB_NAME
+    DB_PATH
 )
+import aiosqlite
 
 class Moderation(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -61,16 +62,17 @@ class Moderation(commands.Cog):
     @app_commands.default_permissions(manage_messages=True)
     @app_commands.checks.has_permissions(manage_messages=True)
     async def say(self, interaction: discord.Interaction, message: str | None = None):
-        user_id_str = str(interaction.user.id)
-        saved_data = load_saved_messages()
         if message:
-            save_user_message(interaction.user.id, message)
+            await save_user_message(interaction.user.id, message)
             text_to_send = message
-        elif user_id_str in saved_data:
-            text_to_send = saved_data[user_id_str]
         else:
-            await interaction.response.send_message("You do not have a saved message yet.", ephemeral=True)
-            return
+            saved_msg = await get_saved_message(interaction.user.id)
+            if saved_msg:
+                text_to_send = saved_msg
+            else:
+                await interaction.response.send_message("You do not have a saved message yet.", ephemeral=True)
+                return
+
         await interaction.channel.send(text_to_send)
         await interaction.response.send_message("Message has been sent.", ephemeral=True)
 
@@ -135,50 +137,47 @@ class Moderation(commands.Cog):
     @app_commands.default_permissions(moderate_members=True)
     @app_commands.checks.has_permissions(moderate_members=True)
     async def warn(self, interaction: discord.Interaction, user: discord.Member, reason: str):
-        data = load_warnings()
-        guild_id, user_id = str(interaction.guild_id), str(user.id)
-        if guild_id not in data:
-            data[guild_id] = {}
-        if user_id not in data[guild_id]:
-            data[guild_id][user_id] = []
-
-        warn_id = len(data[guild_id][user_id]) + 1
-        data[guild_id][user_id].append({
-            "warn_id": warn_id,
-            "reason": reason,
-            "moderator_id": interaction.user.id,
-            "timestamp": datetime.now().isoformat()
-        })
-        save_warnings(data)
-        await interaction.response.send_message(f"Warned {user.name} (ID: #{warn_id}).", ephemeral=True)
+        await add_warning(interaction.guild_id, user.id, reason, interaction.user.id)
+        await interaction.response.send_message(f"Warned {user.name}.", ephemeral=True)
 
     @mod_group.command(name="warnings", description="Views active warnings for a member.")
     @app_commands.default_permissions(moderate_members=True)
     @app_commands.checks.has_permissions(moderate_members=True)
     async def warnings(self, interaction: discord.Interaction, user: discord.Member):
-        data = load_warnings()
-        user_warns = data.get(str(interaction.guild_id), {}).get(str(user.id), [])
+        user_warns = await get_warnings(interaction.guild_id, user.id)
+        
         if not user_warns:
             await interaction.response.send_message(f"{user.name} has no warnings.", ephemeral=True)
             return
 
         embed = discord.Embed(title=f"Warnings for {user.display_name}", color=discord.Color.yellow())
         for item in user_warns:
-            embed.add_field(name=f"Warning ID: #{item['warn_id']}", value=f"Reason: {item['reason']}\nModerator: <@{item['moderator_id']}>", inline=False)
+            embed.add_field(
+                name=f"Warning ID: #{item['id']}", 
+                value=f"Reason: {item['reason']}\nModerator: <@{item['moderator_id']}>\nDate: {item['timestamp']}", 
+                inline=False
+            )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @mod_group.command(name="clearwarnings", description="Clears warnings for a user.")
     @app_commands.default_permissions(moderate_members=True)
     @app_commands.checks.has_permissions(moderate_members=True)
     async def clearwarnings(self, interaction: discord.Interaction, user: discord.Member, warn_id: int | None = None):
-        data = load_warnings()
-        guild_id, user_id = str(interaction.guild_id), str(user.id)
-        if warn_id:
-            data[guild_id][user_id] = [w for w in data.get(guild_id, {}).get(user_id, []) if w["warn_id"] != warn_id]
-        else:
-            data.get(guild_id, {})[user_id] = []
-        save_warnings(data)
+        async with aiosqlite.connect(DB_PATH) as db:
+            if warn_id:
+                await db.execute(
+                    "DELETE FROM warnings WHERE guild_id = ? AND user_id = ? AND id = ?",
+                    (interaction.guild_id, user.id, warn_id)
+                )
+            else:
+                await db.execute(
+                    "DELETE FROM warnings WHERE guild_id = ? AND user_id = ?",
+                    (interaction.guild_id, user.id)
+                )
+            await db.commit()
+
         await interaction.response.send_message(f"Warnings updated for {user.name}.", ephemeral=True)
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Moderation(bot))
+    logging.info("Moderation cog loaded.")
